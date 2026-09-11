@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "verify-dpr": "open scripts/verify-dpr.html"
+    "verify-dpr": "open scripts/verify-dpr.html",
+    "verify-export": "vite --open /scripts/verify-export.html"
   },
   "dependencies": {
     "file-saver": "^2.0.5",

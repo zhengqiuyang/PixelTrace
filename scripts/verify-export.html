@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PixelTrace — 导出合成自检</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: monospace; background: #0a0a0a; color: #e0e0e0; padding: 24px; }
+    h1 { color: #00ff88; font-size: 16px; margin-bottom: 8px; }
+    h2 { color: #888; font-size: 13px; font-weight: normal; margin: 20px 0 8px; }
+    .info { color: #888; font-size: 12px; margin-bottom: 16px; line-height: 1.6; }
+    .result { padding: 8px 12px; margin: 4px 0; border-radius: 4px; font-size: 13px; }
+    .pass { background: rgba(0,255,136,0.15); color: #00ff88; border: 1px solid #00ff8844; }
+    .fail { background: rgba(255,50,50,0.15); color: #ff3366; border: 1px solid #ff336644; }
+    #summary { margin-top: 16px; font-size: 14px; font-weight: bold; }
+    .mock { position: relative; overflow: hidden; border: 1px solid #333; margin-top: 4px; }
+    .preview { margin-top: 8px; border: 1px solid #333; image-rendering: pixelated; }
+  </style>
+</head>
+<body>
+  <h1>PixelTrace — 导出合成自检</h1>
+  <p class="info">
+    验证 <code>composeCurrentView()</code> 在多画布 + overflow 裁剪的视图下，
+    是否把「屏幕上所见」正确合成。若裁剪未被还原，左半区的红色会盖住右半区。<br />
+    当前 devicePixelRatio: <span id="dpr"></span>
+  </p>
+
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <h2>用例 1 · 滑块视图（2 画布，左侧被 overflow:hidden 裁剪到 50%）</h2>
+  <div id="mockSlider" class="mock" style="width: 240px; height: 120px;">
+    <canvas id="s2" width="240" height="120" style="position:absolute;top:0;left:0;width:100%;height:100%"></canvas>
+    <div style="position:absolute;top:0;left:0;width:50%;height:100%;overflow:hidden;">
+      <canvas id="s1" width="240" height="120" style="width:240px;height:120px;display:block"></canvas>
+    </div>
+  </div>
+
+  <h2>用例 2 · 分割视图（2 画布，左右各被裁剪到 50%，无缩放容器）</h2>
+  <div id="mockSplit" class="mock" style="width: 240px; height: 120px;">
+    <div style="position:absolute;top:0;left:0;width:50%;height:100%;overflow:hidden;">
+      <canvas id="p1" width="240" height="120" style="width:240px;height:120px;display:block"></canvas>
+    </div>
+    <div style="position:absolute;top:0;left:50%;width:50%;height:100%;overflow:hidden;">
+      <canvas id="p2" width="240" height="120" style="width:240px;height:120px;display:block"></canvas>
+    </div>
+  </div>
+
+  <script type="module">
+    import { composeCurrentView } from '../src/utils/exportView.js';
+
+    const DPR = window.devicePixelRatio || 1;
+    document.getElementById('dpr').textContent = DPR;
+
+    const results = document.getElementById('results');
+    const summary = document.getElementById('summary');
+    let passed = 0;
+    let failed = 0;
+
+    function log(ok, msg) {
+      const div = document.createElement('div');
+      div.className = `result ${ok ? 'pass' : 'fail'}`;
+      div.textContent = `${ok ? 'PASS' : 'FAIL'} — ${msg}`;
+      results.appendChild(div);
+      ok ? passed++ : failed++;
+    }
+
+    function fill(canvas, color) {
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    /** 在合成结果上按相对位置取色 */
+    function sample(out, rx, ry) {
+      const ctx = out.getContext('2d');
+      const x = Math.min(out.width - 1, Math.max(0, Math.round(out.width * rx)));
+      const y = Math.min(out.height - 1, Math.max(0, Math.round(out.height * ry)));
+      const d = ctx.getImageData(x, y, 1, 1).data;
+      return { r: d[0], g: d[1], b: d[2] };
+    }
+
+    const isRed = (c) => c.r > 180 && c.g < 90 && c.b < 90;
+    const isBlue = (c) => c.b > 180 && c.r < 90 && c.g < 90;
+    const fmt = (c) => `rgb(${c.r}, ${c.g}, ${c.b})`;
+
+    function showPreview(out, host) {
+      const img = document.createElement('img');
+      img.className = 'preview';
+      img.width = host.offsetWidth;
+      img.src = out.toDataURL('image/png');
+      host.parentElement.insertBefore(img, host.nextSibling);
+    }
+
+    // ─── 用例 1: 滑块视图 ───
+    const s1 = document.getElementById('s1');
+    const s2 = document.getElementById('s2');
+    fill(s1, '#ff0000'); // 原始图 = 纯红
+    fill(s2, '#0000ff'); // 修改后图 = 纯蓝
+
+    const sliderHost = document.getElementById('mockSlider');
+    const sliderOut = composeCurrentView(sliderHost);
+
+    if (!sliderOut) {
+      log(false, '滑块视图：composeCurrentView 返回 null');
+    } else {
+      const left = sample(sliderOut, 0.25, 0.5);
+      const right = sample(sliderOut, 0.75, 0.5);
+      log(sliderOut.width === Math.round(240 * DPR),
+        `滑块视图：输出宽度 ${sliderOut.width}，期望 ${Math.round(240 * DPR)}`);
+      log(isRed(left), `滑块视图：左 25% 处应为红色，实际 ${fmt(left)}`);
+      log(isBlue(right), `滑块视图：右 75% 处应为蓝色，实际 ${fmt(right)}`);
+      showPreview(sliderOut, sliderHost);
+    }
+
+    // ─── 用例 2: 分割视图 ───
+    const p1 = document.getElementById('p1');
+    const p2 = document.getElementById('p2');
+    fill(p1, '#ff0000');
+    fill(p2, '#0000ff');
+
+    const splitHost = document.getElementById('mockSplit');
+    const splitOut = composeCurrentView(splitHost);
+
+    if (!splitOut) {
+      log(false, '分割视图：composeCurrentView 返回 null');
+    } else {
+      const left = sample(splitOut, 0.25, 0.5);
+      const right = sample(splitOut, 0.75, 0.5);
+      log(isRed(left), `分割视图：左 25% 处应为红色，实际 ${fmt(left)}`);
+      log(isBlue(right), `分割视图：右 75% 处应为蓝色，实际 ${fmt(right)}`);
+      showPreview(splitOut, splitHost);
+    }
+
+    summary.textContent = failed === 0
+      ? `全部通过（${passed} 项）`
+      : `${passed} 项通过，${failed} 项失败`;
+    summary.style.color = failed === 0 ? '#00ff88' : '#ff3366';
+  </script>
+</body>
+</html>

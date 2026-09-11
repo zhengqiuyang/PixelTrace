@@ -1,6 +1,7 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useToast } from '../hooks/useToast.js';
+import { composeCurrentView, buildExportFilename, downloadBlob } from '../utils/exportView.js';
 
 /**
  * 完整快捷键表 (PRD §11.1)
@@ -27,22 +28,31 @@ import { useToast } from '../hooks/useToast.js';
  */
 export default function Toolbar({ stageRef }) {
   const { state, setView, clearImages } = useAppContext();
-  const { zoom } = state;
-  const { success: toastSuccess } = useToast();
+  const { view, zoom } = state;
+  const { success: toastSuccess, error: toastError } = useToast();
+  const [exporting, setExporting] = useState(false);
 
   const handleExport = useCallback(() => {
-    const canvas = document.querySelector('.view-canvas-wrapper canvas');
-    if (!canvas) return;
-    try {
-      const link = document.createElement('a');
-      link.download = `pixeltrace-${Date.now()}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      toastSuccess('导出成功');
-    } catch {
-      toastSuccess('导出失败');
+    if (exporting) return;
+
+    // 按当前视图的真实变换合成所有画布，而非只取第一个 canvas
+    const canvas = composeCurrentView();
+    if (!canvas) {
+      toastError('当前视图暂无可导出的内容');
+      return;
     }
-  }, [toastSuccess]);
+
+    setExporting(true);
+    canvas.toBlob((blob) => {
+      setExporting(false);
+      if (!blob) {
+        toastError('导出失败，请重试');
+        return;
+      }
+      downloadBlob(blob, buildExportFilename(view));
+      toastSuccess('已导出当前视图');
+    }, 'image/png');
+  }, [exporting, view, toastSuccess, toastError]);
 
   const handleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -90,8 +100,13 @@ export default function Toolbar({ stageRef }) {
           stageRef?.current?.fitToWindow();
           break;
 
-        // 操作
+        // 操作（PRD §11.1 定义 Ctrl+E / Ctrl+S，单按 E 保留为便捷方式）
         case 'e': case 'E':
+          e.preventDefault();
+          handleExport();
+          break;
+        case 's': case 'S':
+          if (!ctrl) break;
           e.preventDefault();
           handleExport();
           break;
@@ -103,7 +118,7 @@ export default function Toolbar({ stageRef }) {
         // 帮助
         case '?':
           e.preventDefault();
-          toastSuccess('快捷键: 1-6视图 | +/-缩放 | 0适应 | E导出 | F全屏');
+          toastSuccess('快捷键: 1-6视图 | +/-缩放 | 0适应 | Ctrl+E 导出 | F全屏');
           break;
 
         case 'Escape':
@@ -126,7 +141,7 @@ export default function Toolbar({ stageRef }) {
         <span className="shortcut-hint" title="视图切换 1-6">1-6 视图</span>
         <span className="shortcut-hint" title="适应窗口">0 适应</span>
         <span className="shortcut-hint" title="放大/缩小 +/-">+/- 缩放</span>
-        <span className="shortcut-hint" title="导出 PNG">E 导出</span>
+        <span className="shortcut-hint" title="导出当前视图为 PNG">Ctrl+E 导出</span>
         <span className="shortcut-hint" title="全屏切换">F 全屏</span>
         <span className="shortcut-hint" title="快捷键帮助">? 帮助</span>
       </div>
@@ -158,8 +173,13 @@ export default function Toolbar({ stageRef }) {
         </button>
       </div>
 
-      <button className="pixel-btn accent" onClick={handleExport}>
-        导出 PNG ↓
+      <button
+        className="pixel-btn accent"
+        onClick={handleExport}
+        disabled={exporting}
+        aria-label="导出当前视图为 PNG"
+      >
+        {exporting ? '导出中...' : '导出 PNG ↓'}
       </button>
     </div>
   );

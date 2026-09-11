@@ -326,6 +326,15 @@ body::before {
   transform: translateY(-1px);
 }
 
+.pixel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  border-color: var(--border);
+  color: var(--text-dim);
+  box-shadow: none;
+}
+
 .pixel-btn:active {
   transform: translateY(0);
   box-shadow: none;
