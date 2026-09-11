@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { ERROR_MESSAGES } from '../utils/constants.js';
+import { useToast } from './useToast.js';
 
 let canvasIdCounter = 0;
 
@@ -70,6 +72,7 @@ export function useImageDiff(imgA, imgB, settings) {
   const debounceTimerRef = useRef(null);
   const lastParamsRef = useRef('');
   const cacheRef = useRef(null);
+  const { toast } = useToast();
 
   const settersRef = useRef({
     setDiffImageData,
@@ -128,6 +131,22 @@ export function useImageDiff(imgA, imgB, settings) {
 
       // 延迟到下一帧执行，让 loading UI 先渲染
       requestAnimationFrame(() => {
+        // 上传尺寸闸门取消后，超出浏览器 canvas 上限的图片会走到这里：
+        // canvas 被浏览器压到 0×0，getImageData 越界抛 IndexSizeError。
+        // 不拦的话异常会直接从 rAF 回调冒出去，整个比较视图停摆。
+        let dataA;
+        let dataB;
+        try {
+          dataA = extractImageData(imgA, w, h);
+          dataB = extractImageData(imgB, w, h);
+        } catch (err) {
+          console.error('提取像素数据失败，图片可能超出浏览器 canvas 上限:', err);
+          setComputing(false);
+          setProgress(0);
+          toast(ERROR_MESSAGES.OUT_OF_MEMORY.message, { type: 'error' });
+          return;
+        }
+
         if (settings.useWorker && typeof Worker !== 'undefined') {
           // 复用常驻 Worker，不每次新建
           if (!workerRef.current) {
@@ -137,15 +156,10 @@ export function useImageDiff(imgA, imgB, settings) {
                 { type: 'module' }
               );
             } catch {
-              const freshA = extractImageData(imgA, w, h);
-              const freshB = extractImageData(imgB, w, h);
-              computeOnMain(freshA, freshB, settings, currentId, computeIdRef, cacheRef, settersRef.current);
+              computeOnMain(dataA, dataB, settings, currentId, computeIdRef, cacheRef, settersRef.current);
               return;
             }
           }
-
-          const dataA = extractImageData(imgA, w, h);
-          const dataB = extractImageData(imgB, w, h);
 
           workerRef.current.onmessage = (e) => {
             if (e.data.id !== currentId) return;
@@ -182,8 +196,6 @@ export function useImageDiff(imgA, imgB, settings) {
             [dataA.data.buffer, dataB.data.buffer]
           );
         } else {
-          const dataA = extractImageData(imgA, w, h);
-          const dataB = extractImageData(imgB, w, h);
           computeOnMain(dataA, dataB, settings, currentId, computeIdRef, cacheRef, settersRef.current);
         }
       });
@@ -192,7 +204,7 @@ export function useImageDiff(imgA, imgB, settings) {
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [imgA, imgB, settings, cleanup]);
+  }, [imgA, imgB, settings, cleanup, toast]);
 
   useEffect(() => cleanup, [cleanup]);
 

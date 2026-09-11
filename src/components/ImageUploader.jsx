@@ -5,8 +5,8 @@ import {
   SUPPORTED_FORMATS,
   SUPPORTED_EXTENSIONS,
   MAX_FILE_SIZE_BYTES,
-  MAX_IMAGE_WIDTH,
-  MAX_IMAGE_HEIGHT,
+  SCALE_TARGET_WIDTH,
+  SCALE_TARGET_HEIGHT,
   UPLOAD_STATES,
   ERROR_MESSAGES,
 } from '../utils/constants.js';
@@ -62,11 +62,11 @@ function imageFromDataUrl(dataUrl) {
   });
 }
 
-/** 把已加载的图按比例缩到 4096×4096 以内 */
+/** 等比缩到 SCALE_TARGET 以内（仅用于内存不足时的降级，不再作为上传闸门） */
 function downscaleToLimit(img) {
   const w = img.naturalWidth || img.width;
   const h = img.naturalHeight || img.height;
-  const ratio = Math.min(MAX_IMAGE_WIDTH / w, MAX_IMAGE_HEIGHT / h, 1);
+  const ratio = Math.min(SCALE_TARGET_WIDTH / w, SCALE_TARGET_HEIGHT / h, 1);
   const targetW = Math.max(1, Math.round(w * ratio));
   const targetH = Math.max(1, Math.round(h * ratio));
 
@@ -84,7 +84,7 @@ export default function ImageUploader({ label, onImageLoad, side: _side }) {
   const [preview, setPreview] = useState(null);
   const [meta, setMeta] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
-  // 超限待用户决策: { error, file, loaded, restoreState }
+  // 待用户决策的上传: { error, file }
   const [pending, setPending] = useState(null);
   const { toast } = useToast();
 
@@ -105,25 +105,15 @@ export default function ImageUploader({ label, onImageLoad, side: _side }) {
     onImageLoad(img, info);
   }, [onImageLoad]);
 
-  /** 加载文件；尺寸超限时挂起等用户决策 */
-  const loadFile = useCallback(async (file, restoreState) => {
+  /**
+   * 加载文件并提交。
+   * 尺寸不再做任何校验 —— 4096×4096 的上传闸门已取消，
+   * 任意像素尺寸的图片都直接进入比较流程。
+   */
+  const loadFile = useCallback(async (file) => {
     setState(UPLOAD_STATES.LOADING);
     try {
       const { img, dataUrl } = await loadImage(file);
-
-      if (img.naturalWidth > MAX_IMAGE_WIDTH || img.naturalHeight > MAX_IMAGE_HEIGHT) {
-        setState(restoreState);
-        setPending({
-          error: {
-            ...ERROR_MESSAGES.IMAGE_TOO_BIG,
-            message: ERROR_MESSAGES.IMAGE_TOO_BIG.message(img.naturalWidth, img.naturalHeight),
-          },
-          file,
-          loaded: { img, dataUrl },
-          restoreState,
-        });
-        return;
-      }
 
       commit(img, dataUrl, {
         fileName: file.name,
@@ -151,17 +141,12 @@ export default function ImageUploader({ label, onImageLoad, side: _side }) {
         return;
       }
       // 文件过大等可继续的情况 —— 弹窗让用户选
-      setPending({
-        error: validation.error,
-        file,
-        loaded: null,
-        restoreState: state,
-      });
+      setPending({ error: validation.error, file });
       return;
     }
 
-    loadFile(file, state);
-  }, [loadFile, toast, state]);
+    loadFile(file);
+  }, [loadFile, toast]);
 
   const handleFile = useCallback((file) => {
     if (file) processFile(file);
@@ -199,28 +184,17 @@ export default function ImageUploader({ label, onImageLoad, side: _side }) {
     const p = pending;
     if (!p) return;
     setPending(null);
-    if (p.loaded) {
-      // 尺寸超限，但用户选择照原样使用
-      commit(p.loaded.img, p.loaded.dataUrl, {
-        fileName: p.file.name,
-        width: p.loaded.img.naturalWidth,
-        height: p.loaded.img.naturalHeight,
-        fileSize: p.file.size,
-        format: p.file.name.split('.').pop().toUpperCase(),
-      });
-    } else {
-      loadFile(p.file, p.restoreState);
-    }
-  }, [pending, commit, loadFile]);
+    loadFile(p.file);
+  }, [pending, loadFile]);
 
-  /** 缩放后继续：等比缩到 4096 以内 */
+  /** 缩放后继续：等比缩到 SCALE_TARGET 以内（内存不足时的降级路径） */
   const scaleAndContinue = useCallback(async () => {
     const p = pending;
     if (!p) return;
     setPending(null);
     setState(UPLOAD_STATES.LOADING);
     try {
-      const source = p.loaded ? p.loaded.img : (await loadImage(p.file)).img;
+      const { img: source } = await loadImage(p.file);
       const scaled = downscaleToLimit(source);
       const img = await imageFromDataUrl(scaled.dataUrl);
 
@@ -244,7 +218,13 @@ export default function ImageUploader({ label, onImageLoad, side: _side }) {
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   };
 
-  const dialogTitle = pending?.error.code === 'FILE_TOO_LARGE' ? '文件过大' : '图片尺寸过大';
+  // 目前只有 FILE_TOO_LARGE（体积）会走到弹窗；尺寸闸门取消后不再有尺寸类拦截。
+  // OUT_OF_MEMORY 保留标题，等它的产出端接上后即可直接生效。
+  const DIALOG_TITLES = {
+    FILE_TOO_LARGE: '文件过大',
+    OUT_OF_MEMORY: '图片过大',
+  };
+  const dialogTitle = pending ? (DIALOG_TITLES[pending.error.code] ?? '提示') : '';
 
   // ─── 各状态内容 ───
   let content;

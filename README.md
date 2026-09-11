@@ -44,7 +44,7 @@ PixelTrace 把整套差异计算放在本地 Canvas + Web Worker 里跑，不依
 ### 其他
 
 - 支持 JPG / PNG / WebP / GIF（取首帧）/ BMP
-- 单张最大 4096 × 4096
+- 单张文件体积上限 50 MB；**像素尺寸不设上限**
 - 差异计算在 Web Worker 中执行，大图不阻塞界面，并显示计算进度
 - 感知 Retina 屏幕（devicePixelRatio），100% 缩放不发虚
 

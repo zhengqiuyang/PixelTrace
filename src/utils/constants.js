@@ -52,9 +52,13 @@ export const MERGE_DISTANCE_MAX = 100;
 export const MAX_REGIONS = 500; // §8.4: 超过截断
 
 // ─── 图片约束 (§5.1.3) ──────────────────────────────────
+// 原先这里有一道 4096×4096 的上传尺寸闸门（MAX_IMAGE_WIDTH / MAX_IMAGE_HEIGHT），
+// 已按要求取消 —— 上传不再因尺寸被拒。
+// 下面两个常量只剩「内存不足时等比缩小的目标值」这一个用途，不参与任何校验，
+// 因此改名，避免日后被误当成上限重新接回校验流程。
 
-export const MAX_IMAGE_WIDTH = 4096;
-export const MAX_IMAGE_HEIGHT = 4096;
+export const SCALE_TARGET_WIDTH = 4096;
+export const SCALE_TARGET_HEIGHT = 4096;
 export const MAX_FILE_SIZE_MB = 50;
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 export const SUPPORTED_FORMATS = Object.freeze([
@@ -131,12 +135,6 @@ export const ERROR_MESSAGES = Object.freeze({
     canContinue: true,
     canScale: false,
   },
-  IMAGE_TOO_BIG: {
-    code: 'IMAGE_TOO_BIG',
-    message: (w, h) => `图片尺寸过大 (${w}×${h})，超过 ${MAX_IMAGE_WIDTH}×${MAX_IMAGE_HEIGHT} 限制`,
-    canContinue: true,
-    canScale: true,
-  },
   CORRUPTED: {
     code: 'CORRUPTED',
     message: '无法读取该图片，文件可能已损坏',
@@ -156,6 +154,9 @@ export const ERROR_MESSAGES = Object.freeze({
     canContinue: true,
     canScale: false,
   },
+  // 尺寸闸门取消后，「缩放后继续」这条路径只剩这里会用到。
+  // 注意：目前没有任何代码产出 OUT_OF_MEMORY —— 触发它的前置校验还没接，
+  // 保留定义是为了不丢失 §12.1 的错误契约。
   OUT_OF_MEMORY: {
     code: 'OUT_OF_MEMORY',
     message: '图片过大导致内存不足，建议缩小图片',
