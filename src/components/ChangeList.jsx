@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MAX_REGIONS, REGION_SIZE_SPLIT } from '../utils/constants.js';
 import { formatPsnr, formatSsim, describeDeltaE } from '../utils/imageMetrics.js';
+import HistogramChart from './HistogramChart.jsx';
 
 // ─── 排序与筛选 (§8.4) ──────────────────────────────────
 // 只影响列表的展示顺序与可见集合，不改动 region.id ——
@@ -105,6 +106,8 @@ export default function ChangeList({ regions, stats, img2, selectedRegion, onSel
   const [regionsWithThumbs, setRegionsWithThumbs] = useState([]);
   const [sortBy, setSortBy] = useState('id');
   const [filterBy, setFilterBy] = useState('all');
+  // 直方图默认收起：侧栏空间有限，它是「按需深入」的信息
+  const [showHistogram, setShowHistogram] = useState(false);
   const listRef = useRef(null);
   const cancelRef = useRef(false);
 
@@ -290,6 +293,22 @@ export default function ChangeList({ regions, stats, img2, selectedRegion, onSel
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {stats?.metrics?.histogram && (
+        <div className="change-list-histogram">
+          <button
+            type="button"
+            className="change-list-histogram-toggle"
+            onClick={() => setShowHistogram((v) => !v)}
+            aria-expanded={showHistogram}
+          >
+            <span className="histogram-caret">{showHistogram ? '▾' : '▸'}</span>
+            RGB 直方图
+          </button>
+          {/* 折叠时整个卸载：画布在隐藏状态下量不到宽度，挂载时再量才准 */}
+          {showHistogram && <HistogramChart histogram={stats.metrics.histogram} />}
         </div>
       )}
     </div>

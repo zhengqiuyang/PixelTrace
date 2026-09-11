@@ -1249,6 +1249,88 @@ body::before {
 .stat-value { color: var(--text); font-family: var(--font-mono); font-weight: 700; }
 .stat-accent { color: var(--accent); text-shadow: 0 0 6px rgba(0, 255, 136, 0.3); }
 
+/* ─── RGB 直方图 ─── */
+.change-list-histogram {
+  border-top: 1px solid var(--border);
+  padding: 8px 14px 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.change-list-histogram-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 2px 0;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: var(--accent);
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.change-list-histogram-toggle:hover { opacity: 1; }
+
+.histogram-caret {
+  font-size: 8px;
+  line-height: 1;
+}
+
+.histogram {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.histogram-canvas {
+  display: block;
+  width: 100%;
+}
+
+.histogram-legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 0 0;
+  font-size: 9px;
+  color: var(--text-dim);
+}
+
+.histogram-swatch {
+  width: 10px;
+  height: 8px;
+  border-radius: 1px;
+  flex: 0 0 auto;
+}
+
+.histogram-swatch--fill {
+  background: rgba(255, 255, 255, 0.28);
+  margin-left: 2px;
+}
+
+.histogram-swatch--line {
+  background: var(--text);
+  height: 2px;
+  border-radius: 0;
+  margin-left: 6px;
+}
+
+.histogram-note {
+  margin-left: auto;
+  font-size: 8px;
+  opacity: 0.7;
+}
+
+.histogram-empty {
+  font-size: 9px;
+  color: var(--text-dim);
+  margin: 8px 0 0;
+}
+
 /* 统计面板内的分组小标题 */
 .stat-section-title {
   font-family: var(--font-ui);
