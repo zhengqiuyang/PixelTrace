@@ -232,7 +232,7 @@ body::before {
 }
 
 .uploader-label {
-  font-family: var(--font-pixel);
+  font-family: var(--font-ui);
   font-size: 12px;
   color: var(--text);
   margin-bottom: 8px;
@@ -307,8 +307,8 @@ body::before {
 
 /* ─── 通用按钮 ─── */
 .pixel-btn {
-  font-family: var(--font-pixel);
-  font-size: 10px;
+  font-family: var(--font-ui);
+  font-size: 12px;
   padding: 10px 20px;
   border: 1px solid var(--border);
   background: var(--bg-card);
@@ -493,8 +493,8 @@ body::before {
 
 /* ─── Computing Bar ─── */
 .computing-bar {
-  font-family: var(--font-pixel);
-  font-size: 9px;
+  font-family: var(--font-ui);
+  font-size: 11px;
   color: var(--accent);
   text-align: center;
   padding: 10px;
@@ -689,8 +689,8 @@ body::before {
 
 .highlight-controls--viewport span {
   color: var(--accent);
-  font-family: var(--font-pixel);
-  font-size: 9px;
+  font-family: var(--font-ui);
+  font-size: 11px;
   min-width: 24px;
   font-weight: 700;
 }
@@ -727,8 +727,8 @@ body::before {
 
 .fade-controls--viewport span {
   color: var(--accent);
-  font-family: var(--font-pixel);
-  font-size: 9px;
+  font-family: var(--font-ui);
+  font-size: 11px;
   min-width: 32px;
   font-weight: 700;
 }
@@ -768,8 +768,8 @@ body::before {
 
 .view-controls--viewport span {
   color: var(--accent);
-  font-family: var(--font-pixel);
-  font-size: 9px;
+  font-family: var(--font-ui);
+  font-size: 11px;
   min-width: 32px;
   font-weight: 700;
 }
@@ -778,8 +778,8 @@ body::before {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text);
-  font-family: var(--font-pixel);
-  font-size: 9px;
+  font-family: var(--font-ui);
+  font-size: 11px;
   padding: 5px 10px;
   border-radius: 4px;
   cursor: pointer;
@@ -816,8 +816,8 @@ body::before {
 .split-controls--viewport .split-label-left {
   position: static;
   top: auto;
-  font-family: var(--font-pixel);
-  font-size: 9px;
+  font-family: var(--font-ui);
+  font-size: 11px;
   padding: 3px 10px;
   background: rgba(0, 204, 255, 0.1);
   color: #00ccff;
@@ -829,8 +829,8 @@ body::before {
 .split-controls--viewport .split-label-right {
   position: static;
   top: auto;
-  font-family: var(--font-pixel);
-  font-size: 9px;
+  font-family: var(--font-ui);
+  font-size: 11px;
   padding: 3px 10px;
   background: rgba(255, 51, 102, 0.1);
   color: #ff3366;
@@ -862,8 +862,8 @@ body::before {
 .slider-controls--viewport .slider-label-left {
   position: static;
   top: auto;
-  font-family: var(--font-pixel);
-  font-size: 9px;
+  font-family: var(--font-ui);
+  font-size: 11px;
   padding: 3px 10px;
   background: rgba(0, 204, 255, 0.1);
   color: #00ccff;
@@ -874,8 +874,8 @@ body::before {
 .slider-controls--viewport .slider-label-right {
   position: static;
   top: auto;
-  font-family: var(--font-pixel);
-  font-size: 9px;
+  font-family: var(--font-ui);
+  font-size: 11px;
   padding: 3px 10px;
   background: rgba(255, 51, 102, 0.1);
   color: #ff3366;
@@ -937,8 +937,8 @@ body::before {
 }
 
 .change-list-title {
-  font-family: var(--font-pixel);
-  font-size: 9px;
+  font-family: var(--font-ui);
+  font-size: 11px;
   color: var(--danger);
   text-shadow: 0 0 6px rgba(255, 51, 102, 0.3);
 }
@@ -1155,8 +1155,8 @@ body::before {
 }
 
 .pixel-dialog .dialog-title {
-  font-family: var(--font-pixel);
-  font-size: 10px;
+  font-family: var(--font-ui);
+  font-size: 12px;
   color: var(--text);
 }
 

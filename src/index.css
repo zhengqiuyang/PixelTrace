@@ -28,8 +28,16 @@
   --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 
   /* ─── 字体 ─── */
-  --font-pixel: 'Press Start 2P', cursive;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* Press Start 2P 与 JetBrains Mono 都只覆盖拉丁字符，中文字形必须显式挂回退栈，
+     否则会落到浏览器默认字体，同一界面出现多套字形混排 */
+  --font-cjk: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+              'Source Han Sans SC', 'Noto Sans CJK SC', sans-serif;
+  --font-pixel: 'Press Start 2P', var(--font-cjk);
+  --font-mono: 'JetBrains Mono', var(--font-cjk);
+  /* 含中文的功能性文案（按钮、标签、列表标题、弹窗标题）统一使用。
+     这类元素不再挂像素字体，避免「导出 PNG」这类中英混排标签在同一行
+     出现两种字体 */
+  --font-ui: var(--font-cjk);
 
   /* ─── 布局 ─── */
   --header-height: 56px;
