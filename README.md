@@ -1,16 +1,137 @@
-# React + Vite
+# PixelTrace
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+> 逐像素图像差异追踪器 —— 纯前端、浏览器端运行的图像对比工具
 
-Currently, two official plugins are available:
+上传两张图片，以像素级精度找出它们之间的所有差异。所有计算都在浏览器内完成，**图片不会上传到任何服务器**。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 为什么做这个
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+现有的在线对比工具，大多要先把图片传到服务器。但对设计师和前端来说，设计稿、未发布的产品截图、客户素材往往并不适合外传。
 
-## Expanding the Oxlint configuration
+PixelTrace 把整套差异计算放在本地 Canvas + Web Worker 里跑，不依赖任何后端。
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## 功能
+
+### 六种比较视图
+
+| 视图 | 说明 |
+|------|------|
+| **滑块** | 垂直分割线，左侧原始图、右侧修改后，拖动分割线左右扫过 |
+| **分割** | 左右并排显示，两侧共享同一套缩放与平移 |
+| **淡化** | 两图同位叠加，滑块控制透明度 0–100% |
+| **闪烁** | 定时交替显示两张图，速度 100–2000ms 可调，可暂停 |
+| **相减** | 非差异区域转灰度、差异像素标红，一眼看出哪里有变化 |
+| **高亮** | 灰度底图 + 红色差异像素 + 变更区域编号框，配合变更列表逐项排查 |
+
+### 变更区域聚类
+
+零散的差异像素会被自动聚类成有意义的「变更区域」，在右侧列表中逐项展示：编号、尺寸、差异像素数与占比，并附带区域缩略图。
+
+- 点击列表项 → 画布自动平移并缩放到该区域
+- 悬停列表项 → 画布上对应区域边框高亮
+- 列表底部汇总总像素、差异像素、差异占比与区域数量
+
+### 图像操作
+
+- **滚轮缩放** —— 以鼠标位置为中心，范围 10%–1600%
+- **拖动平移** —— 左键直接拖动画布，也可按住空格拖动
+- **双击画布** —— 在 100% 与适应窗口之间切换
+- **像素放大镜** —— 悬停时显示光标周围的像素网格与 RGB 值
+- **尺寸不同自动对齐** —— 两图尺寸不一致时提示是否居中缩放对齐，差异只在重叠区域计算
+
+### 其他
+
+- 支持 JPG / PNG / WebP / GIF（取首帧）/ BMP
+- 单张最大 4096 × 4096
+- 差异计算在 Web Worker 中执行，大图不阻塞界面，并显示计算进度
+- 感知 Retina 屏幕（devicePixelRatio），100% 缩放不发虚
+
+## 快捷键
+
+| 按键 | 功能 |
+|------|------|
+| `1` – `6` | 切换六种视图 |
+| `+` / `-` | 放大 / 缩小 |
+| `0` | 适应窗口 |
+| `Ctrl+0` | 重置为 100% |
+| `Home` | 适应窗口 |
+| `E` | 导出当前视图为 PNG |
+| `F` | 全屏切换 |
+| `Space`（按住） | 临时平移模式 |
+| `?` | 显示快捷键提示 |
+| `Esc` | 关闭弹窗 |
+
+## 快速开始
+
+```bash
+npm install
+npm run dev
+```
+
+浏览器打开终端输出的地址，上传两张图片即可开始对比。
+
+### 可用脚本
+
+| 命令 | 说明 |
+|------|------|
+| `npm run dev` | 启动开发服务器 |
+| `npm run build` | 构建生产版本到 `dist/` |
+| `npm run preview` | 本地预览构建产物 |
+| `npm run lint` | 静态检查（oxlint） |
+| `npm run verify-dpr` | 打开渲染自检页，验证高分辨率渲染未退化 |
+
+## 技术栈
+
+- **React 19** + **Vite 8**
+- 原生 **Canvas 2D** 负责像素计算与渲染，**Web Worker** 承载差异计算
+- **纯 CSS**，无 UI 组件库
+- 状态管理使用 `useReducer` + Context
+
+运行环境要求 Node `^20.19.0 || >=22.12.0`。
+
+## 项目结构
+
+```
+src/
+├── components/   # 视图与 UI 组件（六种视图、变更列表、工具栏、放大镜等）
+├── hooks/        # useZoomPan / useImageDiff / useToast
+├── store/        # AppContext（useReducer 集中状态）
+├── utils/        # imageDiff 核心算法、constants、canvasDPR
+└── workers/      # diffWorker 差异计算
+```
+
+## 文档
+
+- [PRODUCT.md](./PRODUCT.md) —— 产品需求文档：交互规范、视觉规范、各视图完整定义
+- [REQUIREMENTS.md](./REQUIREMENTS.md) —— 需求规格：逐项验收标准与依赖关系
+- [VERIFY-F1-OVERLAP.md](./VERIFY-F1-OVERLAP.md) —— 尺寸不同场景下的对齐与重叠区域验证记录
+
+## 项目状态
+
+核心链路（上传 → 对比 → 定位差异）已可用，正在补齐打磨项：
+
+- [x] 六种比较视图
+- [x] 差异计算引擎 + Web Worker
+- [x] 变更区域聚类与变更列表
+- [x] 缩放 / 平移 / 像素放大镜
+- [x] 尺寸不同自动对齐
+- [ ] 设置面板（阈值 / 最小区域 / 合并距离 / 渲染精度）
+- [ ] 键盘快捷键全表
+- [ ] 批量与回归对比（一次比对多组截图）
+- [ ] 多格式导出与剪贴板
+
+## 浏览器支持
+
+Chrome / Edge / Safari 最新版本。依赖 Canvas 2D 与 Web Worker；Worker 不可用时自动降级为主线程计算。
+
+## 隐私
+
+所有图像处理都在你的浏览器内完成——没有上传、没有后端、没有埋点。断网也能正常使用。
+
+> 唯一的网络请求是加载界面字体（Google Fonts）。离线时会回退到系统字体，不影响任何功能。
+
+## License
+
+[MIT](./LICENSE)
