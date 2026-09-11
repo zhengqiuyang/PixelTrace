@@ -12,7 +12,6 @@
     "verify-export": "vite --open /scripts/verify-export.html"
   },
   "dependencies": {
-    "file-saver": "^2.0.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
