@@ -4,6 +4,7 @@
  */
 
 import { computeDiff, findDiffRegions } from '../utils/imageDiff.js';
+import { computeImageMetrics, computeRegionMetrics } from '../utils/imageMetrics.js';
 
 self.onmessage = function (e) {
   const { type, imageDataA, imageDataB, settings, id } = e.data;
@@ -24,11 +25,16 @@ self.onmessage = function (e) {
       },
     });
 
-    const regions = findDiffRegions(mask, w, h, {
+    const foundRegions = findDiffRegions(mask, w, h, {
       minArea: settings.minArea ?? 50,
       mergeDistance: settings.mergeDistance ?? 10,
       maxRegions: settings.maxRegions ?? 500,
     });
+
+    // 质量指标：一趟遍历出 MSE/PSNR/SSIM/直方图，再补逐区域色差。
+    // 放在 worker 里算，大图上不会卡住界面。
+    const metrics = computeImageMetrics(imageDataA, imageDataB);
+    const regions = computeRegionMetrics(imageDataA, imageDataB, mask, foundRegions);
 
     const totalPixels = w * h;
     const diffPercentage = totalPixels > 0 ? (diffCount / totalPixels) * 100 : 0;
@@ -48,6 +54,7 @@ self.onmessage = function (e) {
             diffPercentage,
             regionCount: regions.length,
             filtered,
+            metrics,
           },
         },
       },

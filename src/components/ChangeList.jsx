@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MAX_REGIONS, REGION_SIZE_SPLIT } from '../utils/constants.js';
+import { formatPsnr, formatSsim, describeDeltaE } from '../utils/imageMetrics.js';
 
 // ─── 排序与筛选 (§8.4) ──────────────────────────────────
 // 只影响列表的展示顺序与可见集合，不改动 region.id ——
@@ -212,6 +213,14 @@ export default function ChangeList({ regions, stats, img2, selectedRegion, onSel
               <span className="change-list-pixels">
                 {r.pixels.toLocaleString()} px ({r.percentage.toFixed(1)}%)
               </span>
+              {r.metrics && (
+                <span
+                  className="change-list-deltae"
+                  title={`平均色差 ΔE76 ${r.metrics.meanDeltaE.toFixed(2)}（${describeDeltaE(r.metrics.meanDeltaE)}）｜最大 ${r.metrics.maxDeltaE.toFixed(2)}｜平均亮度变化 ${r.metrics.meanLumaShift >= 0 ? '+' : ''}${r.metrics.meanLumaShift.toFixed(1)}`}
+                >
+                  ΔE {r.metrics.meanDeltaE.toFixed(1)}
+                </span>
+              )}
             </div>
           </div>
         ))}
@@ -256,6 +265,30 @@ export default function ChangeList({ regions, stats, img2, selectedRegion, onSel
               <span className="stat-label">最小区域</span>
               <span className="stat-value">{smallest.width} × {smallest.height}</span>
             </div>
+          )}
+
+          {stats.metrics && (
+            <>
+              <div className="stat-section-title">质量指标</div>
+              <div className="stat-row">
+                <span className="stat-label" title="峰值信噪比，越高越好；无穷大表示两图完全一致">
+                  PSNR
+                </span>
+                <span className="stat-value">{formatPsnr(stats.metrics.psnr)}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label" title="结构相似度，1 表示完全一致。按 8×8 分块统计，边缘不足一块的像素不计入">
+                  SSIM
+                </span>
+                <span className="stat-value">{formatSsim(stats.metrics.ssim)}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label" title="均方误差，越小越好">
+                  MSE
+                </span>
+                <span className="stat-value">{stats.metrics.mse.toFixed(2)}</span>
+              </div>
+            </>
           )}
         </div>
       )}

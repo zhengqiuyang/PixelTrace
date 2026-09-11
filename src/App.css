@@ -1221,6 +1221,15 @@ body::before {
   color: var(--text-dim);
 }
 
+/* 逐区域色差：用青色区分于面积的灰色，避免两行数字糊在一起 */
+.change-list-deltae {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: #00ccff;
+  letter-spacing: 0.2px;
+}
+
 .change-list-stats {
   padding: 12px 14px;
   border-top: 1px solid var(--border);
@@ -1239,6 +1248,20 @@ body::before {
 .stat-label { color: var(--text-dim); }
 .stat-value { color: var(--text); font-family: var(--font-mono); font-weight: 700; }
 .stat-accent { color: var(--accent); text-shadow: 0 0 6px rgba(0, 255, 136, 0.3); }
+
+/* 统计面板内的分组小标题 */
+.stat-section-title {
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: var(--accent);
+  text-transform: uppercase;
+  opacity: 0.75;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
 
 /* ═══════════════════════════════════
    FOOTER

@@ -15,6 +15,7 @@ function extractImageData(img, w, h) {
 
 async function computeOnMain(dataA, dataB, settings, currentId, computeIdRef, cacheRef, setters) {
   const { computeDiff, findDiffRegions } = await import('../utils/imageDiff.js');
+  const { computeImageMetrics, computeRegionMetrics } = await import('../utils/imageMetrics.js');
 
   if (currentId !== computeIdRef.current) return;
 
@@ -31,18 +32,23 @@ async function computeOnMain(dataA, dataB, settings, currentId, computeIdRef, ca
     maxRegions: settings.maxRegions ?? 500,
   });
 
+  // 与 worker 路径保持一致：质量指标 + 逐区域色差
+  const metrics = computeImageMetrics(dataA, dataB);
+  const regions = computeRegionMetrics(dataA, dataB, mask, foundRegions);
+
   const totalPixels = diffImg.width * diffImg.height;
   const result = {
     diffImageData: diffImg,
     diffCount,
     mask,
-    regions: foundRegions,
+    regions,
     stats: {
       totalPixels,
       diffCount,
       diffPercentage: totalPixels > 0 ? (diffCount / totalPixels) * 100 : 0,
-      regionCount: foundRegions.length,
+      regionCount: regions.length,
       filtered,
+      metrics,
     },
   };
 
