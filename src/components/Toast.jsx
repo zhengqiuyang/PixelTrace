@@ -23,8 +23,14 @@ export function ToastProvider({ children }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // 语义化快捷方式：Toolbar / ComparisonView 按 success(...) 调用
+  const success = useCallback((message, options) => toast(message, { ...options, type: 'success' }), [toast]);
+  const error = useCallback((message, options) => toast(message, { ...options, type: 'error' }), [toast]);
+  const warning = useCallback((message, options) => toast(message, { ...options, type: 'warning' }), [toast]);
+  const info = useCallback((message, options) => toast(message, { ...options, type: 'info' }), [toast]);
+
   return (
-    <ToastContext.Provider value={{ toast, dismiss }}>
+    <ToastContext.Provider value={{ toast, dismiss, success, error, warning, info }}>
       {children}
       <div className="toast-container" aria-live="polite">
         {toasts.map((t) => (
