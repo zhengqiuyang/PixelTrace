@@ -1,5 +1,31 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MAX_REGIONS } from '../utils/constants.js';
+import { MAX_REGIONS, REGION_SIZE_SPLIT } from '../utils/constants.js';
+
+// ─── 排序与筛选 (§8.4) ──────────────────────────────────
+// 只影响列表的展示顺序与可见集合，不改动 region.id ——
+// 画布上的区域编号必须保持稳定，否则「#3」在列表和画布上会对不上
+
+const SORT_OPTIONS = [
+  { key: 'id', label: '按编号' },
+  { key: 'area-desc', label: '面积 大→小' },
+  { key: 'area-asc', label: '面积 小→大' },
+  { key: 'pos-x', label: '位置 左→右' },
+  { key: 'pos-y', label: '位置 上→下' },
+];
+
+const FILTER_OPTIONS = [
+  { key: 'all', label: '全部' },
+  { key: 'large', label: '仅大区域' },
+  { key: 'small', label: '仅小区域' },
+];
+
+const SORTERS = {
+  id: (a, b) => a.id - b.id,
+  'area-desc': (a, b) => b.pixels - a.pixels,
+  'area-asc': (a, b) => a.pixels - b.pixels,
+  'pos-x': (a, b) => a.x - b.x || a.y - b.y,
+  'pos-y': (a, b) => a.y - b.y || a.x - b.x,
+};
 
 /**
  * 生成区域缩略图 (64×64, Base64)
@@ -76,6 +102,8 @@ function generateThumbnails(img, regions, setRegionsWithThumbs, cancelRef) {
 
 export default function ChangeList({ regions, stats, img2, selectedRegion, onSelectRegion, hoveredRegion, onHoverRegion }) {
   const [regionsWithThumbs, setRegionsWithThumbs] = useState([]);
+  const [sortBy, setSortBy] = useState('id');
+  const [filterBy, setFilterBy] = useState('all');
   const listRef = useRef(null);
   const cancelRef = useRef(false);
 
@@ -102,10 +130,32 @@ export default function ChangeList({ regions, stats, img2, selectedRegion, onSel
 
   const truncated = regions.length >= MAX_REGIONS;
 
+  // ─── 排序 + 筛选 (§8.4) ───
+  const threshold = REGION_SIZE_SPLIT;
+  const visible = regionsWithThumbs
+    .filter((r) => {
+      if (filterBy === 'large') return r.pixels >= threshold;
+      if (filterBy === 'small') return r.pixels < threshold;
+      return true;
+    })
+    .sort(SORTERS[sortBy] ?? SORTERS.id);
+
+  // §8.5 统计面板要求列出最大/最小区域，按差异像素数取（与 §8.4「面积」口径一致）
+  const largest = regions.length
+    ? regions.reduce((m, r) => (r.pixels > m.pixels ? r : m))
+    : null;
+  const smallest = regions.length
+    ? regions.reduce((m, r) => (r.pixels < m.pixels ? r : m))
+    : null;
+
+  const filtered = visible.length !== regionsWithThumbs.length;
+
   return (
     <div className="change-list">
       <div className="change-list-header">
-        <span className="change-list-title">变更区域 ({regions.length})</span>
+        <span className="change-list-title">
+          变更区域 ({filtered ? `${visible.length}/${regionsWithThumbs.length}` : regions.length})
+        </span>
         {truncated && (
           <span className="change-list-truncated">
             仅显示前 {MAX_REGIONS} 个
@@ -113,8 +163,35 @@ export default function ChangeList({ regions, stats, img2, selectedRegion, onSel
         )}
       </div>
 
+      <div className="change-list-controls">
+        <select
+          className="change-list-select"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          aria-label="变更区域排序方式"
+        >
+          {SORT_OPTIONS.map((o) => (
+            <option key={o.key} value={o.key}>{o.label}</option>
+          ))}
+        </select>
+
+        <div className="change-list-filters" role="group" aria-label="变更区域筛选">
+          {FILTER_OPTIONS.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              className={`change-list-filter ${filterBy === o.key ? 'active' : ''}`}
+              onClick={() => setFilterBy(o.key)}
+              aria-pressed={filterBy === o.key}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="change-list-items" ref={listRef}>
-        {regionsWithThumbs.map((r) => (
+        {visible.map((r) => (
           <div
             key={r.id}
             className={`change-list-item ${selectedRegion === r.id ? 'selected' : ''} ${hoveredRegion === r.id ? 'hovered' : ''}`}
@@ -138,6 +215,14 @@ export default function ChangeList({ regions, stats, img2, selectedRegion, onSel
             </div>
           </div>
         ))}
+
+        {visible.length === 0 && (
+          <p className="change-list-empty">
+            {regionsWithThumbs.length === 0
+              ? '未检测到差异区域'
+              : `没有${filterBy === 'large' ? '大' : '小'}于 ${threshold} px 的区域`}
+          </p>
+        )}
       </div>
 
       {stats && (
@@ -160,6 +245,18 @@ export default function ChangeList({ regions, stats, img2, selectedRegion, onSel
             <span className="stat-label">变更区域</span>
             <span className="stat-value">{stats.regionCount}</span>
           </div>
+          {largest && (
+            <div className="stat-row">
+              <span className="stat-label">最大区域</span>
+              <span className="stat-value">{largest.width} × {largest.height}</span>
+            </div>
+          )}
+          {smallest && (
+            <div className="stat-row">
+              <span className="stat-label">最小区域</span>
+              <span className="stat-value">{smallest.width} × {smallest.height}</span>
+            </div>
+          )}
         </div>
       )}
     </div>

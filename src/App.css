@@ -1064,6 +1064,72 @@ body::before {
   color: var(--text-dim);
 }
 
+/* ─── 排序与筛选 (§8.4) ─── */
+.change-list-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.change-list-select {
+  width: 100%;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.change-list-select:focus-visible {
+  outline: 2px dashed var(--accent);
+  outline-offset: 1px;
+}
+
+.change-list-filters {
+  display: flex;
+  gap: 3px;
+}
+
+.change-list-filter {
+  flex: 1;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.change-list-filter:hover {
+  color: var(--text);
+  border-color: var(--accent-dim);
+}
+
+.change-list-filter.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(0, 255, 136, 0.08);
+}
+
+.change-list-empty {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 24px 12px;
+  line-height: 1.6;
+}
+
 .change-list-items {
   flex: 1;
   overflow-y: auto;
