@@ -51,6 +51,20 @@ export const MERGE_DISTANCE_MAX = 100;
 
 export const MAX_REGIONS = 500; // §8.4: 超过截断
 
+// 比较口径 (§8.4)。三种模式共用同一个 0..100 阈值滑块 ——
+// perceptual 的色差会被换算成「等效亮度差」再比，换算见 imageDiff.js
+export const DIFF_MODES = Object.freeze([
+  { key: 'rgb', label: 'RGB 均值', hint: '三通道差值的平均，最直观' },
+  { key: 'luma', label: '亮度', hint: 'Rec.601 加权，只看明暗不看色相' },
+  { key: 'perceptual', label: '感知 (YIQ)', hint: '接近人眼，饱和色变化更敏感' },
+]);
+
+// 忽略位移的可选档位（像素）
+export const SHIFT_TOLERANCE_OPTIONS = Object.freeze([
+  { value: 0, label: '关闭' },
+  { value: 1, label: '±1px' },
+]);
+
 // ─── 图片约束 (§5.1.3) ──────────────────────────────────
 // 原先这里有一道 4096×4096 的上传尺寸闸门（MAX_IMAGE_WIDTH / MAX_IMAGE_HEIGHT），
 // 已按要求取消 —— 上传不再因尺寸被拒。
@@ -178,6 +192,12 @@ export const DEFAULT_SETTINGS = Object.freeze({
   threshold: DEFAULT_THRESHOLD,
   minArea: DEFAULT_MIN_AREA,
   mergeDistance: DEFAULT_MERGE_DISTANCE,
+  // 比较口径：默认 rgb —— 保持与历史行为一致，不静默改变用户的阈值直觉
+  diffMode: 'rgb',
+  // 抗锯齿过滤：只在 perceptual 口径下生效（见 imageDiff.computeDiff）
+  antiAlias: false,
+  // 容许的像素位移，用来吸收整体亚像素抖动
+  ignoreShift: 0,
 
   // 显示
   showDiffBoxes: true,

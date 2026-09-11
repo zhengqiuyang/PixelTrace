@@ -18,8 +18,11 @@ async function computeOnMain(dataA, dataB, settings, currentId, computeIdRef, ca
 
   if (currentId !== computeIdRef.current) return;
 
-  const { diffImageData: diffImg, diffCount, mask } = computeDiff(dataA, dataB, {
+  const { diffImageData: diffImg, diffCount, mask, filtered } = computeDiff(dataA, dataB, {
     threshold: settings.threshold,
+    mode: settings.diffMode,
+    antiAlias: settings.antiAlias,
+    ignoreShift: settings.ignoreShift,
   });
 
   const foundRegions = findDiffRegions(mask, diffImg.width, diffImg.height, {
@@ -39,6 +42,7 @@ async function computeOnMain(dataA, dataB, settings, currentId, computeIdRef, ca
       diffCount,
       diffPercentage: totalPixels > 0 ? (diffCount / totalPixels) * 100 : 0,
       regionCount: foundRegions.length,
+      filtered,
     },
   };
 
@@ -103,7 +107,18 @@ export function useImageDiff(imgA, imgB, settings) {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
     debounceTimerRef.current = setTimeout(() => {
-      const paramsKey = `${getImageId(imgA)}|${getImageId(imgB)}|${settings.threshold}|${settings.minArea}|${settings.mergeDistance}`;
+      // 缓存 key 必须覆盖所有会影响计算结果的设置。
+      // 漏掉任何一项，用户改了设置却拿回上一次的结果 —— 新增检测选项时务必同步这里。
+      const paramsKey = [
+        getImageId(imgA),
+        getImageId(imgB),
+        settings.threshold,
+        settings.minArea,
+        settings.mergeDistance,
+        settings.diffMode,
+        settings.antiAlias,
+        settings.ignoreShift,
+      ].join('|');
 
       if (paramsKey === lastParamsRef.current && cacheRef.current) {
         const cached = cacheRef.current;

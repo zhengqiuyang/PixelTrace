@@ -14,8 +14,11 @@ self.onmessage = function (e) {
     const w = Math.min(imageDataA.width, imageDataB.width);
     const h = Math.min(imageDataA.height, imageDataB.height);
 
-    const { diffImageData, diffCount, mask } = computeDiff(imageDataA, imageDataB, {
+    const { diffImageData, diffCount, mask, filtered } = computeDiff(imageDataA, imageDataB, {
       threshold: settings.threshold,
+      mode: settings.diffMode,
+      antiAlias: settings.antiAlias,
+      ignoreShift: settings.ignoreShift,
       onProgress: (percent) => {
         self.postMessage({ type: 'progress', id, percent });
       },
@@ -44,6 +47,7 @@ self.onmessage = function (e) {
             diffCount,
             diffPercentage,
             regionCount: regions.length,
+            filtered,
           },
         },
       },

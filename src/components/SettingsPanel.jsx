@@ -6,6 +6,8 @@ import {
   MERGE_DISTANCE_MIN, MERGE_DISTANCE_MAX,
   ZOOM_STEP_PERCENT_MIN, ZOOM_STEP_PERCENT_MAX,
   HIGHLIGHT_COLORS,
+  DIFF_MODES,
+  SHIFT_TOLERANCE_OPTIONS,
 } from '../utils/constants.js';
 
 /**
@@ -54,12 +56,13 @@ function Slider({ value, min, max, step = 1, suffix = '', onChange, ariaLabel })
 }
 
 /** 开关 */
-function Toggle({ checked, onChange, ariaLabel }) {
+function Toggle({ checked, onChange, ariaLabel, disabled = false }) {
   return (
-    <label className="settings-toggle">
+    <label className={`settings-toggle ${disabled ? 'disabled' : ''}`}>
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
         aria-label={ariaLabel}
       />
@@ -67,6 +70,35 @@ function Toggle({ checked, onChange, ariaLabel }) {
         <span className="settings-toggle-thumb" />
       </span>
     </label>
+  );
+}
+
+/**
+ * 分段选择器。
+ * 选项少（2-3 个）且互斥时，比下拉少一次点击、状态也一眼可见。
+ * @param {{ value: any, label: string, hint?: string }[]} options
+ */
+function Segmented({ value, options, onChange, ariaLabel, disabled = false }) {
+  return (
+    <div
+      className={`settings-segmented ${disabled ? 'disabled' : ''}`}
+      role="group"
+      aria-label={ariaLabel}
+    >
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          className={`settings-segment ${value === o.value ? 'active' : ''}`}
+          disabled={disabled}
+          title={o.hint}
+          aria-pressed={value === o.value}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -88,6 +120,9 @@ export default function SettingsPanel({ open, onClose }) {
   if (!open) return null;
 
   const set = (patch) => updateSettings(patch);
+
+  const isPerceptual = settings.diffMode === 'perceptual';
+  const modeHint = DIFF_MODES.find((m) => m.key === settings.diffMode)?.hint ?? '';
 
   return (
     <dialog
@@ -134,6 +169,33 @@ export default function SettingsPanel({ open, onClose }) {
               suffix=" px"
               onChange={(v) => set({ mergeDistance: v })}
               ariaLabel="区域合并距离"
+            />
+          </Row>
+          <Row label="比较口径" hint={modeHint}>
+            <Segmented
+              value={settings.diffMode}
+              options={DIFF_MODES.map((m) => ({ value: m.key, label: m.label, hint: m.hint }))}
+              onChange={(v) => set({ diffMode: v })}
+              ariaLabel="比较口径"
+            />
+          </Row>
+          <Row
+            label="抗锯齿过滤"
+            hint={isPerceptual ? '忽略边缘过渡像素，压掉改稿误报' : '仅「感知 (YIQ)」口径下可用'}
+          >
+            <Toggle
+              checked={isPerceptual && settings.antiAlias}
+              disabled={!isPerceptual}
+              onChange={(v) => set({ antiAlias: v })}
+              ariaLabel="抗锯齿过滤"
+            />
+          </Row>
+          <Row label="忽略位移" hint="吸收整体亚像素抖动，避免全图飘红">
+            <Segmented
+              value={settings.ignoreShift}
+              options={SHIFT_TOLERANCE_OPTIONS}
+              onChange={(v) => set({ ignoreShift: v })}
+              ariaLabel="忽略位移"
             />
           </Row>
         </section>
