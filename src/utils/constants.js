@@ -202,6 +202,26 @@ export const BLINK_SPEED_MIN = 100; // ms
 export const BLINK_SPEED_MAX = 2000; // ms
 export const BLINK_SPEED_DEFAULT = 500; // ms
 
+// ─── 高亮颜色预设 (§9.3) ────────────────────────────────
+// 都是高饱和色，压在灰度底图上才能一眼看出来；
+// 顺带避开与选中态（--accent 荧光绿）/ 悬浮态（#00ccff）撞色太近的选项
+export const HIGHLIGHT_COLORS = Object.freeze([
+  { value: '#ff3366', label: '霓虹红' },
+  { value: '#ff9500', label: '琥珀橙' },
+  { value: '#ffe600', label: '警示黄' },
+  { value: '#ff00d4', label: '品红' },
+  { value: '#b366ff', label: '紫罗兰' },
+  { value: '#ffffff', label: '纯白' },
+]);
+
+// ─── 设置面板数值范围 (§9.3) ────────────────────────────
+
+export const ZOOM_STEP_PERCENT_MIN = 1;
+export const ZOOM_STEP_PERCENT_MAX = 50;
+
+// 大/小区域的划分阈值（§8.4 筛选）——按差异像素数
+export const REGION_SIZE_SPLIT = 200;
+
 // ─── 布局 (§4.1, §15.4) ────────────────────────────────
 
 export const HEADER_HEIGHT = 56; // px

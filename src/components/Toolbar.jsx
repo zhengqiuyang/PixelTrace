@@ -26,7 +26,7 @@ import { composeCurrentView, buildExportFilename, downloadBlob } from '../utils/
  * ?    显示快捷键帮助
  * Escape 关闭弹窗/退出全屏
  */
-export default function Toolbar({ stageRef }) {
+export default function Toolbar({ stageRef, onOpenSettings }) {
   const { state, setView, clearImages } = useAppContext();
   const { view, zoom } = state;
   const { success: toastSuccess, error: toastError } = useToast();
@@ -121,6 +121,12 @@ export default function Toolbar({ stageRef }) {
           toastSuccess('快捷键: 1-6视图 | +/-缩放 | 0适应 | Ctrl+E 导出 | F全屏');
           break;
 
+        // 设置面板 (PRD §9.1)
+        case ',':
+          e.preventDefault();
+          onOpenSettings?.();
+          break;
+
         case 'Escape':
           // 由各组件自行处理
           break;
@@ -129,7 +135,7 @@ export default function Toolbar({ stageRef }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setView, zoom, stageRef, handleExport, handleFullscreen, toastSuccess]);
+  }, [setView, zoom, stageRef, handleExport, handleFullscreen, toastSuccess, onOpenSettings]);
 
   return (
     <div className="result-toolbar">
@@ -143,7 +149,7 @@ export default function Toolbar({ stageRef }) {
         <span className="shortcut-hint" title="放大/缩小 +/-">+/- 缩放</span>
         <span className="shortcut-hint" title="导出当前视图为 PNG">Ctrl+E 导出</span>
         <span className="shortcut-hint" title="全屏切换">F 全屏</span>
-        <span className="shortcut-hint" title="快捷键帮助">? 帮助</span>
+        <span className="shortcut-hint" title="打开设置面板">, 设置</span>
       </div>
 
       <div className="toolbar-spacer" />
@@ -172,6 +178,14 @@ export default function Toolbar({ stageRef }) {
           ⊞
         </button>
       </div>
+
+      <button
+        className="pixel-btn"
+        onClick={() => onOpenSettings?.()}
+        aria-label="打开设置面板"
+      >
+        ≡ 设置
+      </button>
 
       <button
         className="pixel-btn accent"

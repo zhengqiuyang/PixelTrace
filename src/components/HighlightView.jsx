@@ -1,7 +1,21 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { onDPRChange } from '../utils/canvasDPR.js';
 
-export default function HighlightView({ img1, img2, width, height, regions, mask, selectedRegion, hoveredRegion, onSelectRegion, displayMode }) {
+export default function HighlightView({
+  img1,
+  img2,
+  width,
+  height,
+  regions,
+  mask,
+  selectedRegion,
+  hoveredRegion,
+  onSelectRegion,
+  displayMode,
+  showDiffBoxes = true,
+  showRegionNumbers = true,
+  highlightColor = '#ff3366',
+}) {
   const canvasRef = useRef(null);
 
   const draw = useCallback(() => {
@@ -29,9 +43,10 @@ export default function HighlightView({ img1, img2, width, height, regions, mask
     }
 
     // ─── 2. 差异像素 ───
+    // 高亮色来自设置面板；选中/悬浮态仍用固定的荧光绿/电光蓝，
+    // 因为这两个颜色承担的是「状态」语义，不该跟着主题色走
     if (mask && mask.length > 0) {
-      const color = displayMode === 'diff-only' ? '#ff3c3c' : '#ff3232';
-      ctx.fillStyle = color;
+      ctx.fillStyle = highlightColor;
       for (let i = 0; i < mask.length; i++) {
         if (mask[i]) {
           ctx.fillRect(i % width, Math.floor(i / width), 1, 1);
@@ -40,28 +55,35 @@ export default function HighlightView({ img1, img2, width, height, regions, mask
     }
 
     // ─── 3. 区域框 ───
-    if (regions && regions.length > 0) {
+    if (showDiffBoxes && regions && regions.length > 0) {
       regions.forEach((r) => {
         const isSelected = selectedRegion === r.id;
         const isHovered = hoveredRegion === r.id;
+        const color = isSelected ? '#00ff88' : isHovered ? '#00ccff' : highlightColor;
 
-        ctx.strokeStyle = isSelected ? '#00ff88' : isHovered ? '#00ccff' : '#ff3366';
+        ctx.strokeStyle = color;
         ctx.lineWidth = isSelected ? 3 : isHovered ? 2.5 : 1.5;
         ctx.setLineDash(isSelected || isHovered ? [] : [6, 4]);
         ctx.strokeRect(r.x, r.y, r.width, r.height);
+
+        if (!showRegionNumbers) return;
 
         const label = `#${r.id}`;
         ctx.font = 'bold 14px monospace';
         const tw = ctx.measureText(label).width;
         const ly = Math.max(16, r.y - 4);
-        ctx.fillStyle = isSelected ? '#00ff88' : isHovered ? '#00ccff' : '#ff3366';
+        ctx.fillStyle = color;
         ctx.fillRect(r.x, ly - 14, tw + 8, 18);
         ctx.fillStyle = '#000';
         ctx.fillText(label, r.x + 4, ly);
       });
       ctx.setLineDash([]);
     }
-  }, [img1, img2, width, height, regions, mask, selectedRegion, hoveredRegion, displayMode]);
+  }, [
+    img1, img2, width, height, regions, mask,
+    selectedRegion, hoveredRegion, displayMode,
+    showDiffBoxes, showRegionNumbers, highlightColor,
+  ]);
 
   useEffect(() => { draw(); }, [draw]);
   useEffect(() => onDPRChange(() => draw()), [draw]);

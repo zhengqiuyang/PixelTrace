@@ -16,6 +16,8 @@ import SizeMismatchDialog from './SizeMismatchDialog';
 import PixelMagnifier from './PixelMagnifier';
 import SliderLine from './SliderLine';
 import StatusBar from './StatusBar';
+import SettingsPanel from './SettingsPanel';
+import { PixelGrid, Crosshair } from './CanvasOverlay';
 
 function doAlign(imgA, imgB) {
   const c1 = document.createElement('canvas');
@@ -50,9 +52,9 @@ const DISPLAY_MODES = [
   { key: 'diff-only', label: '差异' },
 ];
 
-export default function ComparisonView({ img1, img2, stageRef: externalStageRef }) {
+export default function ComparisonView({ img1, img2, stageRef: externalStageRef, settingsOpen = false, onCloseSettings }) {
   const { state, setView, setSelectedRegion, updateSettings, setAppZoom } = useAppContext();
-  const { view, settings, selectedRegion } = state;
+  const { view, settings, selectedRegion, zoom } = state;
   const containerRef = useRef(null);
   const internalStageRef = useRef(null);
   const stageRef = externalStageRef || internalStageRef;
@@ -229,8 +231,15 @@ export default function ComparisonView({ img1, img2, stageRef: externalStageRef 
       blinkSpeed,
       blinkPaused,
       sliderPos,
+      // 显示设置（目前只有 HighlightView 消费区域框/编号/高亮色）
+      showDiffBoxes: settings.showDiffBoxes,
+      showRegionNumbers: settings.showRegionNumbers,
+      highlightColor: settings.highlightColor,
       // SplitView 自带一套 zoom/pan，同样需要上报，否则切换视图后缩放读数会停在旧值
       onZoomPanChange: handleZoomPanChange,
+      // 分割视图的两个面板各自需要一份像素网格
+      gridStep,
+      gridLineWidth,
     };
     switch (view) {
       case 'slider': return <SliderView {...props} />;
@@ -249,6 +258,24 @@ export default function ComparisonView({ img1, img2, stageRef: externalStageRef 
   const magnifierImgs = isBlinkView
     ? [blinkShowing === 'a' ? effectiveA : effectiveB]
     : [effectiveA, effectiveB];
+
+  // ─── 辅助叠加层 (§9.3 显示设置) ───
+  // 网格间距取 2 的幂，保证屏幕间距不小于 8px（否则低倍率下糊成一片）；
+  // 线宽传 1/zoom 抵消外层 scale()，这样任何倍率下网格线都是稳定的 1px。
+  // 循环最多 12 轮，直接算即可，不值得上 useMemo（反而触发 React Compiler 警告）
+  const gridStep = (() => {
+    if (!settings.showGrid) return 0;
+    const z = zoom || 1;
+    let step = 1;
+    while (step * z < 8 && step < 4096) step *= 2;
+    return step;
+  })();
+  const gridLineWidth = zoom > 0 ? 1 / zoom : 1;
+
+  const crosshairPos =
+    magnifier.visible && magnifierRect
+      ? { x: magnifier.x - magnifierRect.left, y: magnifier.y - magnifierRect.top }
+      : null;
 
   return (
     <div className="comparison-root">
@@ -281,10 +308,18 @@ export default function ComparisonView({ img1, img2, stageRef: externalStageRef 
               ref={stageRef}
               contentWidth={imgW}
               contentHeight={imgH}
-              onZoomPanChange={(z) => setAppZoom(z.zoom)}
+              onZoomPanChange={handleZoomPanChange}
+              zoomStep={settings.zoomStepPercent / 100}
+              smoothZoom={settings.smoothZoom}
+              showZoomPercent={settings.showZoomPercent}
             >
               {renderView()}
+              <PixelGrid step={gridStep} lineWidth={gridLineWidth} />
             </CanvasStage>
+          )}
+
+          {settings.showCrosshair && (
+            <Crosshair x={crosshairPos?.x} y={crosshairPos?.y} />
           )}
 
           {isHighlightView && (
@@ -426,6 +461,8 @@ export default function ComparisonView({ img1, img2, stageRef: externalStageRef 
         onAlign={handleAlign}
         onKeep={handleKeepOriginal}
       />
+
+      <SettingsPanel open={settingsOpen} onClose={onCloseSettings} />
     </div>
   );
 }

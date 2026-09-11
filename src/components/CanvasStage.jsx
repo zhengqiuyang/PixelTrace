@@ -7,7 +7,15 @@ import { useZoomPan } from '../hooks/useZoomPan.js';
  * 通过 CSS transform: translate() scale() 实现 60fps
  */
 const CanvasStage = forwardRef(function CanvasStage(
-  { contentWidth, contentHeight, children, onZoomPanChange },
+  {
+    contentWidth,
+    contentHeight,
+    children,
+    onZoomPanChange,
+    zoomStep,
+    smoothZoom = true,
+    showZoomPercent = true,
+  },
   ref
 ) {
   const containerRef = useRef(null);
@@ -15,11 +23,12 @@ const CanvasStage = forwardRef(function CanvasStage(
     zoom,
     pan,
     isPanning,
+    isZooming,
     fitToWindow,
     setZoom,
     setPan,
     showZoomIndicator,
-  } = useZoomPan(containerRef, contentWidth, contentHeight);
+  } = useZoomPan(containerRef, contentWidth, contentHeight, { zoomStep, smoothZoom });
 
   // 暴露方法给父组件
   useImperativeHandle(ref, () => ({
@@ -73,7 +82,7 @@ const CanvasStage = forwardRef(function CanvasStage(
   return (
     <div
       ref={containerRef}
-      className="canvas-stage"
+      className={`canvas-stage ${isZooming ? 'is-zooming' : ''}`}
       style={{
         position: 'relative',
         width: '100%',
@@ -91,7 +100,7 @@ const CanvasStage = forwardRef(function CanvasStage(
         {children}
       </div>
 
-      {showZoomIndicator && (
+      {showZoomPercent && showZoomIndicator && (
         <div className="zoom-indicator">
           {Math.round(zoom * 100)}%
         </div>

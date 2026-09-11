@@ -1,7 +1,8 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { setupCanvasDPR, onDPRChange } from '../utils/canvasDPR.js';
+import { PixelGrid } from './CanvasOverlay.jsx';
 
-export default function SplitView({ img1, img2, width, height, onZoomPanChange }) {
+export default function SplitView({ img1, img2, width, height, onZoomPanChange, gridStep, gridLineWidth }) {
   const containerRef = useRef(null);
   const leftCanvasRef = useRef(null);
   const rightCanvasRef = useRef(null);
@@ -130,6 +131,7 @@ export default function SplitView({ img1, img2, width, height, onZoomPanChange }
           willChange: 'transform',
         }}>
           <canvas ref={leftCanvasRef} style={{ width: `${width}px`, height: `${height}px` }} />
+          <PixelGrid step={gridStep} lineWidth={gridLineWidth} />
         </div>
       </div>
 
@@ -152,6 +154,7 @@ export default function SplitView({ img1, img2, width, height, onZoomPanChange }
           willChange: 'transform',
         }}>
           <canvas ref={rightCanvasRef} style={{ width: `${width}px`, height: `${height}px` }} />
+          <PixelGrid step={gridStep} lineWidth={gridLineWidth} />
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { AppProvider } from './store/AppContext.jsx';
 import { useAppContext } from './hooks/useAppContext.js';
 import { ToastProvider } from './components/Toast.jsx';
@@ -12,6 +12,8 @@ function AppContent() {
   const { images } = state;
   const hasBoth = images.left && images.right;
   const stageRef = useRef(null);
+  // 弹窗开合放在这里，工具栏的「设置」按钮与 ComparisonView 里的面板要共用同一份状态
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <div className="app">
@@ -54,11 +56,13 @@ function AppContent() {
         </div>
       ) : (
         <div className="result-section">
-          <Toolbar stageRef={stageRef} />
+          <Toolbar stageRef={stageRef} onOpenSettings={() => setSettingsOpen(true)} />
           <ComparisonView
             img1={images.left}
             img2={images.right}
             stageRef={stageRef}
+            settingsOpen={settingsOpen}
+            onCloseSettings={() => setSettingsOpen(false)}
           />
         </div>
       )}

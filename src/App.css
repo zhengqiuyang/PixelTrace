@@ -991,6 +991,45 @@ body::before {
   text-shadow: 0 0 6px rgba(0, 255, 136, 0.3);
 }
 
+/* ─── 平滑缩放 (§9.3「平滑缩放动画」) ─── */
+/* 只在一次缩放动作后的 150ms 内挂过渡；平移期间不加，否则拖拽会发黏 */
+.canvas-stage.is-zooming .canvas-stage-content {
+  transition: transform var(--transition-fast);
+}
+
+/* ─── 画布辅助叠加层 (§9.3 显示设置) ─── */
+/* 位于 .canvas-stage-content 内，跟随 scale() 一起缩放，
+   线宽由 JS 传 1/zoom 抵消，保证屏幕上始终是 1px */
+.pixel-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.crosshair {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+}
+
+.crosshair-v {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(0, 255, 136, 0.5);
+}
+
+.crosshair-h {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(0, 255, 136, 0.5);
+}
+
 /* ═══════════════════════════════════
    CHANGE LIST SIDEBAR
    ═══════════════════════════════════ */
@@ -1255,6 +1294,165 @@ body::before {
 @keyframes dialogIn {
   from { opacity: 0; transform: scale(0.94) translateY(8px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ═══════════════════════════════════
+   SETTINGS PANEL (§9.3)
+   ═══════════════════════════════════ */
+.settings-dialog {
+  max-width: 520px;
+  width: 92%;
+}
+
+.settings-body {
+  max-height: min(66vh, 560px);
+  overflow-y: auto;
+  padding: 6px 18px 4px;
+}
+
+.settings-section {
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.settings-section:last-child { border-bottom: none; }
+
+.settings-section-title {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.settings-section-title::before {
+  content: '▸ ';
+  color: var(--accent-dim);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+  min-height: 30px;
+}
+
+.settings-row-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text);
+  min-width: 0;
+}
+
+.settings-row-hint {
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.settings-row-control {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* 滑块 + 数值 */
+.settings-slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-slider input[type='range'] {
+  width: 150px;
+  accent-color: var(--accent);
+}
+
+.settings-slider-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 46px;
+  text-align: right;
+}
+
+/* 开关 */
+.settings-toggle { cursor: pointer; display: inline-flex; }
+
+.settings-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.settings-toggle-track {
+  position: relative;
+  display: block;
+  width: 38px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  transition: all var(--transition-fast);
+}
+
+.settings-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: all var(--transition-fast);
+}
+
+.settings-toggle input:checked + .settings-toggle-track {
+  background: rgba(0, 255, 136, 0.18);
+  border-color: var(--accent);
+}
+
+.settings-toggle input:checked + .settings-toggle-track .settings-toggle-thumb {
+  left: 20px;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+}
+
+.settings-toggle input:focus-visible + .settings-toggle-track {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+
+/* 高亮色板 */
+.settings-swatches {
+  display: flex;
+  gap: 6px;
+}
+
+.settings-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.settings-swatch:hover { transform: translateY(-1px); }
+
+.settings-swatch.active {
+  border-color: var(--text);
+  transform: translateY(-1px);
 }
 
 /* ═══════════════════════════════════

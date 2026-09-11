@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP } from '../utils/constants.js';
+import { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP, ZOOM_ANIMATION_DURATION } from '../utils/constants.js';
 
 function clampZoom(z) {
   return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
@@ -10,18 +10,25 @@ function clampZoom(z) {
  * @param {React.RefObject} containerRef - 画布容器 ref
  * @param {number} contentWidth - 内容宽度
  * @param {number} contentHeight - 内容高度
- * @returns {{ zoom, pan, isPanning, zoomAtPoint, setZoom, setPan, fitToWindow, reset, showZoomIndicator }}
+ * @param {{ zoomStep?: number, smoothZoom?: boolean }} [options]
+ *   zoomStep 为每次滚轮的步进（0.01 ~ 0.5），smoothZoom 控制是否给 transform 加过渡
+ * @returns {{ zoom, pan, isPanning, isZooming, zoomAtPoint, setZoom, setPan, fitToWindow, reset, showZoomIndicator }}
  */
-export function useZoomPan(containerRef, contentWidth, contentHeight) {
+export function useZoomPan(containerRef, contentWidth, contentHeight, options = {}) {
+  const { zoomStep = ZOOM_STEP, smoothZoom = true } = options;
+
   const [zoom, setZoomState] = useState(1);
   const [pan, setPanState] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [showZoomIndicator, setShowZoomIndicator] = useState(false);
+  // 仅在一次缩放动作后短暂置真，用于给 transform 挂过渡；平移时不加，避免拖拽发黏
+  const [isZooming, setIsZooming] = useState(false);
 
   const stateRef = useRef({ zoom: 1, pan: { x: 0, y: 0 } });
   const panStartRef = useRef(null);
   const spaceDownRef = useRef(false);
   const zoomIndicatorTimer = useRef(null);
+  const zoomingTimer = useRef(null);
   const dragStartRef = useRef(null);
   const dragPanStartedRef = useRef(false);
 
@@ -34,6 +41,18 @@ export function useZoomPan(containerRef, contentWidth, contentHeight) {
     setShowZoomIndicator(true);
     if (zoomIndicatorTimer.current) clearTimeout(zoomIndicatorTimer.current);
     zoomIndicatorTimer.current = setTimeout(() => setShowZoomIndicator(false), 300);
+
+    if (smoothZoom) {
+      setIsZooming(true);
+      if (zoomingTimer.current) clearTimeout(zoomingTimer.current);
+      zoomingTimer.current = setTimeout(() => setIsZooming(false), ZOOM_ANIMATION_DURATION);
+    }
+  }, [smoothZoom]);
+
+  // 卸载时清掉两个定时器，避免在已卸载组件上 setState
+  useEffect(() => () => {
+    if (zoomIndicatorTimer.current) clearTimeout(zoomIndicatorTimer.current);
+    if (zoomingTimer.current) clearTimeout(zoomingTimer.current);
   }, []);
 
   const setZoom = useCallback((newZoom) => {
@@ -108,13 +127,13 @@ export function useZoomPan(containerRef, contentWidth, contentHeight) {
 
     const handleWheel = (e) => {
       e.preventDefault();
-      const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
+      const delta = e.deltaY < 0 ? zoomStep : -zoomStep;
       zoomAtPoint(e.clientX, e.clientY, delta);
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
     return () => container.removeEventListener('wheel', handleWheel);
-  }, [containerRef, zoomAtPoint]);
+  }, [containerRef, zoomAtPoint, zoomStep]);
 
   // 空格 + 拖动平移
   useEffect(() => {
@@ -249,6 +268,7 @@ export function useZoomPan(containerRef, contentWidth, contentHeight) {
     zoom,
     pan,
     isPanning,
+    isZooming,
     zoomAtPoint,
     setZoom,
     setPan,
