@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useToast } from '../hooks/useToast.js';
+import { ZOOM_LEVELS } from '../utils/constants.js';
 import { composeCurrentView, buildExportFilename, downloadBlob } from '../utils/exportView.js';
 
 /**
@@ -26,7 +27,7 @@ import { composeCurrentView, buildExportFilename, downloadBlob } from '../utils/
  * ?    显示快捷键帮助
  * Escape 关闭弹窗/退出全屏
  */
-export default function Toolbar({ stageRef, onOpenSettings }) {
+export default function Toolbar({ stageRef, onOpenSettings, onOpenHelp }) {
   const { state, setView, clearImages } = useAppContext();
   const { view, zoom } = state;
   const { success: toastSuccess, error: toastError } = useToast();
@@ -53,6 +54,29 @@ export default function Toolbar({ stageRef, onOpenSettings }) {
       toastSuccess('已导出当前视图');
     }, 'image/png');
   }, [exporting, view, toastSuccess, toastError]);
+
+  /** 复制当前视图到剪贴板 (§10.3) —— 粘贴进飞书/钉钉/微信即可分享 */
+  const handleCopy = useCallback(async () => {
+    const canvas = composeCurrentView();
+    if (!canvas) {
+      toastError('当前视图暂无可复制的内容');
+      return;
+    }
+    if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+      toastError('当前浏览器不支持复制图片，请改用导出');
+      return;
+    }
+    try {
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) throw new Error('toBlob 返回空');
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      toastSuccess('已复制到剪贴板');
+    } catch (err) {
+      // 非安全上下文（http 且非 localhost）或用户未授权时会走到这里
+      console.error('复制到剪贴板失败:', err);
+      toastError('复制失败，请改用导出');
+    }
+  }, [toastSuccess, toastError]);
 
   const handleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -110,21 +134,17 @@ export default function Toolbar({ stageRef, onOpenSettings }) {
           e.preventDefault();
           handleExport();
           break;
+        case 'c': case 'C':
+          // 只认 Ctrl/Cmd+C，单按 c 不做事，避免误触
+          if (!ctrl) break;
+          // 页面上有选中文本时让浏览器自己复制，不要抢用户的 Ctrl+C
+          if (!window.getSelection()?.isCollapsed) break;
+          e.preventDefault();
+          handleCopy();
+          break;
         case 'f': case 'F':
           e.preventDefault();
           handleFullscreen();
-          break;
-
-        // 帮助
-        case '?':
-          e.preventDefault();
-          toastSuccess('快捷键: 1-6视图 | +/-缩放 | 0适应 | Ctrl+E 导出 | F全屏');
-          break;
-
-        // 设置面板 (PRD §9.1)
-        case ',':
-          e.preventDefault();
-          onOpenSettings?.();
           break;
 
         case 'Escape':
@@ -135,7 +155,15 @@ export default function Toolbar({ stageRef, onOpenSettings }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setView, zoom, stageRef, handleExport, handleFullscreen, toastSuccess, onOpenSettings]);
+  }, [setView, zoom, stageRef, handleExport, handleCopy, handleFullscreen]);
+
+  // 缩放下拉：预设级别之外还可能出现任意倍率（滚轮/适应窗口），
+  // 因此把当前值也塞进选项里，否则 select 会显示成空白
+  const zoomPercent = Math.round(zoom * 100);
+  const zoomLevels = ZOOM_LEVELS.map((z) => Math.round(z * 100));
+  const zoomOptions = zoomLevels.includes(zoomPercent)
+    ? zoomLevels
+    : [...zoomLevels, zoomPercent].sort((a, b) => a - b);
 
   return (
     <div className="result-toolbar">
@@ -147,9 +175,9 @@ export default function Toolbar({ stageRef, onOpenSettings }) {
         <span className="shortcut-hint" title="视图切换 1-6">1-6 视图</span>
         <span className="shortcut-hint" title="适应窗口">0 适应</span>
         <span className="shortcut-hint" title="放大/缩小 +/-">+/- 缩放</span>
+        <span className="shortcut-hint" title="方向键平移画布">↑↓←→ 平移</span>
         <span className="shortcut-hint" title="导出当前视图为 PNG">Ctrl+E 导出</span>
-        <span className="shortcut-hint" title="全屏切换">F 全屏</span>
-        <span className="shortcut-hint" title="打开设置面板">, 设置</span>
+        <span className="shortcut-hint" title="复制当前视图到剪贴板">Ctrl+C 复制</span>
       </div>
 
       <div className="toolbar-spacer" />
@@ -162,7 +190,16 @@ export default function Toolbar({ stageRef, onOpenSettings }) {
         >
           −
         </button>
-        <span className="zoom-value">{Math.round(zoom * 100)}%</span>
+        <select
+          className="zoom-select"
+          value={zoomPercent}
+          onChange={(e) => stageRef?.current?.setZoom(Number(e.target.value) / 100)}
+          aria-label="缩放级别"
+        >
+          {zoomOptions.map((p) => (
+            <option key={p} value={p}>{p}%</option>
+          ))}
+        </select>
         <button
           className="zoom-btn"
           onClick={() => stageRef?.current?.setZoom(zoom * 1.25)}
@@ -181,10 +218,26 @@ export default function Toolbar({ stageRef, onOpenSettings }) {
 
       <button
         className="pixel-btn"
+        onClick={() => handleCopy()}
+        aria-label="复制当前视图到剪贴板"
+      >
+        复制
+      </button>
+
+      <button
+        className="pixel-btn"
         onClick={() => onOpenSettings?.()}
         aria-label="打开设置面板"
       >
         ≡ 设置
+      </button>
+
+      <button
+        className="pixel-btn"
+        onClick={() => onOpenHelp?.()}
+        aria-label="查看键盘快捷键"
+      >
+        ⌨ 快捷键
       </button>
 
       <button

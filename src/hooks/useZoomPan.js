@@ -140,13 +140,34 @@ export function useZoomPan(containerRef, contentWidth, contentHeight, options = 
     const container = containerRef.current;
     if (!container) return;
 
+    // 方向键每次平移的像素量 (§11.1)
+    const PAN_STEP = 40;
+
     const handleKeyDown = (e) => {
-      if (e.code === 'Space' && !spaceDownRef.current) {
-        const tag = e.target.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      const tag = e.target.tagName;
+      const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+      if (e.code === 'Space') {
+        if (typing || spaceDownRef.current) return;
         spaceDownRef.current = true;
         container.style.cursor = 'grab';
+        return;
       }
+
+      // 方向键平移：pan 增大表示内容往右下走，视口相对往上/左看
+      if (typing) return;
+      let dx = 0;
+      let dy = 0;
+      switch (e.key) {
+        case 'ArrowUp': dy = PAN_STEP; break;
+        case 'ArrowDown': dy = -PAN_STEP; break;
+        case 'ArrowLeft': dx = PAN_STEP; break;
+        case 'ArrowRight': dx = -PAN_STEP; break;
+        default: return;
+      }
+      e.preventDefault();
+      const { pan: p } = stateRef.current;
+      setPanState({ x: p.x + dx, y: p.y + dy });
     };
 
     const handleKeyUp = (e) => {
