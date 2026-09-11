@@ -15,6 +15,7 @@ import ChangeList from './ChangeList';
 import SizeMismatchDialog from './SizeMismatchDialog';
 import PixelMagnifier from './PixelMagnifier';
 import SliderLine from './SliderLine';
+import StatusBar from './StatusBar';
 
 function doAlign(imgA, imgB) {
   const c1 = document.createElement('canvas');
@@ -83,6 +84,9 @@ export default function ComparisonView({ img1, img2, stageRef: externalStageRef 
   const handleMouseLeave = useCallback(() => {
     setMagnifier((prev) => ({ ...prev, visible: false }));
   }, []);
+
+  // 画布把缩放上报到全局，供工具栏与底部状态栏共用
+  const handleZoomPanChange = useCallback((z) => setAppZoom(z.zoom), [setAppZoom]);
 
   // 尺寸检测 + 对齐
   useEffect(() => {
@@ -225,6 +229,8 @@ export default function ComparisonView({ img1, img2, stageRef: externalStageRef 
       blinkSpeed,
       blinkPaused,
       sliderPos,
+      // SplitView 自带一套 zoom/pan，同样需要上报，否则切换视图后缩放读数会停在旧值
+      onZoomPanChange: handleZoomPanChange,
     };
     switch (view) {
       case 'slider': return <SliderView {...props} />;
@@ -245,7 +251,7 @@ export default function ComparisonView({ img1, img2, stageRef: externalStageRef 
     : [effectiveA, effectiveB];
 
   return (
-    <div className="comparison-layout">
+    <div className="comparison-root">
       <div className="comparison-main" ref={containerRef}>
         <div className="view-switcher">
           {VIEW_LIST.map((v) => (
@@ -397,6 +403,14 @@ export default function ComparisonView({ img1, img2, stageRef: externalStageRef 
           onHoverRegion={setHoveredRegion}
         />
       )}
+
+      <StatusBar
+        image={effectiveA}
+        mouseX={magnifier.x}
+        mouseY={magnifier.y}
+        hovering={magnifier.visible}
+        regions={regions}
+      />
 
       <PixelMagnifier
         imgs={magnifierImgs}

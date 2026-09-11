@@ -55,7 +55,9 @@ function reducer(state, action) {
       return { ...state, sidebarOpen: action.open };
 
     case 'SET_ZOOM':
-      return { ...state, zoom: action.zoom };
+      // 缩放值未变时返回原 state，让 React 走 Object.is 短路，
+      // 否则画布每次上报（含到达缩放上下限后的空转）都会刷新全部消费者
+      return state.zoom === action.zoom ? state : { ...state, zoom: action.zoom };
 
     default:
       return state;

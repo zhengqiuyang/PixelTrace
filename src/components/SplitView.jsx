@@ -1,7 +1,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { setupCanvasDPR, onDPRChange } from '../utils/canvasDPR.js';
 
-export default function SplitView({ img1, img2, width, height }) {
+export default function SplitView({ img1, img2, width, height, onZoomPanChange }) {
   const containerRef = useRef(null);
   const leftCanvasRef = useRef(null);
   const rightCanvasRef = useRef(null);
@@ -39,6 +39,11 @@ export default function SplitView({ img1, img2, width, height }) {
     ro.observe(container);
     return () => ro.disconnect();
   }, [fitToHalfPanel]);
+
+  // 上报缩放给外层（工具栏 / 状态栏），与其他视图保持一致
+  useEffect(() => {
+    if (onZoomPanChange) onZoomPanChange({ zoom, pan });
+  }, [zoom, pan, onZoomPanChange]);
 
   // 滚轮缩放（以鼠标为锚点）
   useEffect(() => {

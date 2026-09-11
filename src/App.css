@@ -476,11 +476,14 @@ body::before {
   gap: 14px;
 }
 
-.comparison-layout {
+.comparison-root {
+  position: relative;
   flex: 1;
   display: flex;
   gap: 14px;
   min-height: 0;
+  /* 底部状态栏为绝对定位的固定条，这里预留其高度避免压住画布 */
+  padding-bottom: calc(var(--status-bar-height) + 6px);
 }
 
 .comparison-main {
@@ -508,6 +511,80 @@ body::before {
 @keyframes computingPulse {
   0%, 100% { opacity: 0.6; border-color: rgba(0, 255, 136, 0.1); }
   50% { opacity: 1; border-color: rgba(0, 255, 136, 0.3); }
+}
+
+/* ─── 底部状态栏 (PRODUCT.md §4.1) ─── */
+/* 缩放比例 │ 鼠标坐标 │ 当前像素 RGB │ 变更区域数 */
+.status-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--status-bar-height);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: linear-gradient(180deg, rgba(18, 18, 26, 0.92), rgba(18, 18, 26, 0.98));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  overflow: hidden;
+}
+
+.status-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 0 12px;
+}
+
+/* 分隔线用边框而非「│」字符 —— 窄屏隐藏整段时不会残留孤立竖线 */
+.status-seg + .status-seg { border-left: 1px solid var(--border); }
+
+.status-seg:first-child { padding-left: 0; }
+
+.status-seg:last-child { padding-right: 0; }
+
+.status-zoom {
+  color: var(--accent);
+  font-weight: 700;
+  min-width: 46px;
+}
+
+.status-coord { min-width: 104px; }
+
+.status-color {
+  color: var(--text);
+  min-width: 94px;
+}
+
+.status-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* 未取样时的占位棋盘格 —— 空白方块容易被误读成「黑色像素」 */
+.status-swatch.is-empty {
+  background-color: rgba(255, 255, 255, 0.03);
+  background-image:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.12) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.12) 75%),
+    linear-gradient(45deg, rgba(255, 255, 255, 0.12) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.12) 75%);
+  background-size: 6px 6px;
+  background-position: 0 0, 3px 3px;
+}
+
+.status-regions { margin-left: auto; }
+
+.status-regions-num {
+  color: var(--danger);
+  font-weight: 700;
 }
 
 /* ─── View Switcher ─── */
@@ -1198,4 +1275,9 @@ body::before {
   .breadcrumb { font-size: 10px; }
   .view-switcher { flex-wrap: wrap; }
   .view-btn { padding: 8px 10px; font-size: 10px; }
+
+  /* 状态栏窄屏优先保留缩放与坐标，色值让位 */
+  .status-bar { font-size: 10px; padding: 0 8px; }
+  .status-seg { padding: 0 8px; }
+  .status-color { display: none; }
 }

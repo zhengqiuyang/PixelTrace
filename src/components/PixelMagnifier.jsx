@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { clientToImagePoint, sampleGrid } from '../utils/canvasCoords.js';
 
 const GRID_SIZE = 9;
 const CELL_SIZE = 16;
@@ -21,74 +22,27 @@ export default function PixelMagnifier({ imgs, mouseX, mouseY, containerRect, vi
     const imgW = img.naturalWidth || img.width;
     const imgH = img.naturalHeight || img.height;
 
-    const stageContent = document.querySelector('.canvas-stage-content');
-    let scale = 1, tx = 0, ty = 0;
-    if (stageContent) {
-      const style = window.getComputedStyle(stageContent);
-      const transform = style.transform;
-      if (transform && transform !== 'none') {
-        const m = transform.match(/matrix\(([^)]+)\)/);
-        if (m) {
-          const v = m[1].split(',').map(Number);
-          scale = v[0]; tx = v[4]; ty = v[5];
-        }
-      }
-    }
-
-    const stageRect = document.querySelector('.canvas-stage')?.getBoundingClientRect();
-    if (!stageRect) return;
-
-    const localX = mouseX - stageRect.left;
-    const localY = mouseY - stageRect.top;
-    const imgX = Math.floor((localX - tx) / scale);
-    const imgY = Math.floor((localY - ty) / scale);
-
-    if (imgX < 0 || imgX >= imgW || imgY < 0 || imgY >= imgH) {
+    // 坐标映射与像素取样统一走 canvasCoords，
+    // 分割视图（无 .canvas-stage）也能正确命中，行为与底部状态栏一致
+    const point = clientToImagePoint(mouseX, mouseY, imgW, imgH);
+    if (!point) {
       setPixelData(null);
       return;
     }
 
-    const half = Math.floor(GRID_SIZE / 2);
+    const grids = imgs.map((image) => sampleGrid(image, point.x, point.y, GRID_SIZE));
+    if (grids.some((g) => !g)) {
+      setPixelData(null);
+      return;
+    }
 
-    const readGrid = (image) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = image.naturalWidth || image.width;
-      canvas.height = image.naturalHeight || image.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(image, 0, 0);
-
-      const startX = Math.max(0, imgX - half);
-      const startY = Math.max(0, imgY - half);
-      const w = Math.min(GRID_SIZE, canvas.width - startX);
-      const h = Math.min(GRID_SIZE, canvas.height - startY);
-
-      const data = ctx.getImageData(startX, startY, w, h);
-      const pixels = [];
-      for (let y = 0; y < GRID_SIZE; y++) {
-        for (let x = 0; x < GRID_SIZE; x++) {
-          const idx = (y * w + x) * 4;
-          if (idx + 3 < data.data.length) {
-            pixels.push({
-              r: data.data[idx],
-              g: data.data[idx + 1],
-              b: data.data[idx + 2],
-            });
-          } else {
-            pixels.push({ r: 0, g: 0, b: 0 });
-          }
-        }
-      }
-      return pixels;
-    };
-
-    const grids = imgs.map(readGrid);
     const centerIdx = Math.floor(GRID_SIZE * GRID_SIZE / 2);
 
     setPixelData({
       grids,
-      centerX: imgX,
-      centerY: imgY,
-      centerPixels: grids.map(g => g[centerIdx]),
+      centerX: point.x,
+      centerY: point.y,
+      centerPixels: grids.map((g) => g[centerIdx]),
     });
   }, [imgs, mouseX, mouseY, containerRect]);
 
