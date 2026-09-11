@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PixelTrace — DPR 自检</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: monospace; background: #0a0a0a; color: #e0e0e0; padding: 24px; }
+    h1 { color: #00ff88; font-size: 16px; margin-bottom: 16px; }
+    .result { padding: 8px 12px; margin: 4px 0; border-radius: 4px; font-size: 13px; }
+    .pass { background: rgba(0,255,136,0.15); color: #00ff88; border: 1px solid #00ff8844; }
+    .fail { background: rgba(255,50,50,0.15); color: #ff3366; border: 1px solid #ff336644; }
+    .info { color: #888; font-size: 12px; margin-bottom: 16px; }
+    canvas { display: none; }
+    #summary { margin-top: 16px; font-size: 14px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>PixelTrace — DPR 清晰度自检</h1>
+  <p class="info">当前 devicePixelRatio: <span id="dpr"></span></p>
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <canvas id="testCanvas"></canvas>
+
+  <script>
+    const DPR = window.devicePixelRatio || 1;
+    document.getElementById('dpr').textContent = DPR;
+
+    const views = [
+      'slider', 'split', 'fade', 'blink', 'subtract', 'highlight'
+    ];
+
+    const results = document.getElementById('results');
+    const summary = document.getElementById('summary');
+    let passed = 0;
+    let failed = 0;
+
+    function log(view, ok, msg) {
+      const div = document.createElement('div');
+      div.className = `result ${ok ? 'pass' : 'fail'}`;
+      div.textContent = `${ok ? '✓' : '✗'} [${view}] ${msg}`;
+      results.appendChild(div);
+      if (ok) passed++; else failed++;
+    }
+
+    function createCheckerboard(size) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          ctx.fillStyle = ((x + y) % 2 === 0) ? '#ff0000' : '#00ff00';
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+      return canvas;
+    }
+
+    function testDPR(viewName) {
+      return new Promise((resolve) => {
+        const testSize = 8;
+        const src = createCheckerboard(testSize);
+        const srcCtx = src.getContext('2d');
+        const srcData = srcCtx.getImageData(0, 0, testSize, testSize);
+
+        const canvas = document.getElementById('testCanvas');
+        const dpr = DPR;
+
+        // 模拟 setupCanvasDPR 行为
+        canvas.width = Math.round(testSize * dpr);
+        canvas.height = Math.round(testSize * dpr);
+        canvas.style.width = `${testSize}px`;
+        canvas.style.height = `${testSize}px`;
+
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        // 绘制 1px 棋盘格
+        for (let y = 0; y < testSize; y++) {
+          for (let x = 0; x < testSize; x++) {
+            ctx.fillStyle = ((x + y) % 2 === 0) ? '#ff0000' : '#00ff00';
+            ctx.fillRect(x, y, 1, 1);
+          }
+        }
+
+        // 读回像素 — 在逻辑坐标系下读取
+        // 注意: getImageData 受 transform 影响，需要用临时 canvas
+        const readCanvas = document.createElement('canvas');
+        readCanvas.width = testSize;
+        readCanvas.height = testSize;
+        const readCtx = readCanvas.getContext('2d');
+        readCtx.drawImage(canvas, 0, 0, testSize, testSize, 0, 0, testSize, testSize);
+        const readData = readCtx.getImageData(0, 0, testSize, testSize);
+
+        // 逐像素比对
+        let mismatchCount = 0;
+        const maxDiff = 5; // 允许微小舍入误差
+        for (let i = 0; i < srcData.data.length; i += 4) {
+          const dr = Math.abs(srcData.data[i] - readData.data[i]);
+          const dg = Math.abs(srcData.data[i + 1] - readData.data[i + 1]);
+          const db = Math.abs(srcData.data[i + 2] - readData.data[i + 2]);
+          if (dr > maxDiff || dg > maxDiff || db > maxDiff) {
+            mismatchCount++;
+          }
+        }
+
+        if (mismatchCount === 0) {
+          log(viewName, true, `DPR=${dpr} 逐像素比对通过 (${testSize}×${testSize} 棋盘格)`);
+        } else {
+          log(viewName, false, `DPR=${dpr} 发现 ${mismatchCount} 个不匹配像素`);
+        }
+
+        resolve();
+      });
+    }
+
+    async function runAll() {
+      for (const view of views) {
+        await testDPR(view);
+      }
+
+      summary.textContent = `结果: ${passed} 通过, ${failed} 失败 (共 ${views.length} 项)`;
+      summary.style.color = failed === 0 ? '#00ff88' : '#ff3366';
+    }
+
+    runAll();
+  </script>
+</body>
+</html>
