@@ -375,6 +375,8 @@ body::before {
 }
 
 /* ─── Toolbar ─── */
+/* 不换行 —— 一旦允许 wrap，按钮会掉到第二行，整条工具栏高度翻倍。
+   空间不够时由 .toolbar-shortcuts 收缩并裁掉右侧提示，而不是折行。 */
 .result-toolbar {
   display: flex;
   align-items: center;
@@ -385,13 +387,17 @@ body::before {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
+/* 唯一可收缩的项：宽度不够时从右侧裁掉提示，保证右侧按钮永远完整可见 */
 .toolbar-shortcuts {
   display: flex;
   gap: 6px;
-  flex-wrap: wrap;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  flex-wrap: nowrap;
 }
 
 .shortcut-hint {
@@ -404,6 +410,9 @@ body::before {
   border-radius: 4px;
   transition: all 0.15s ease;
   letter-spacing: 0.3px;
+  /* 提示自己不被压扁：宁可整条被裁掉，也不要文字挤成两行 */
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .shortcut-hint:hover {
@@ -412,7 +421,7 @@ body::before {
   background: rgba(0, 255, 136, 0.05);
 }
 
-.toolbar-spacer { flex: 1; }
+.toolbar-spacer { flex: 1 1 0; min-width: 0; }
 
 /* ─── Zoom Controls ─── */
 .zoom-controls {
@@ -1598,6 +1607,25 @@ body::before {
 /* ═══════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════ */
+
+/* 工具栏提示按「先砍最不常用的」逐级下线 —— nth-child 的顺序即优先级，
+   与 Toolbar.jsx 里提示的书写顺序一一对应，改动其一必须同步改另一个。
+   阈值来自实测：工具栏内容宽 = 视口 − 2×144（页面留白）− 32（内边距），
+   5 条提示约需 1073px、4 条约 1002px、2 条约 858px，据此反推。 */
+@media (max-width: 1392px) {
+  /* Ctrl+E 导出：右侧就有「导出」按钮，先让位 */
+  .toolbar-shortcuts .shortcut-hint:nth-child(n + 5) { display: none; }
+}
+
+@media (max-width: 1322px) {
+  /* +/- 缩放、↑↓←→ 平移：上手后自然会试的操作 */
+  .toolbar-shortcuts .shortcut-hint:nth-child(n + 3) { display: none; }
+}
+
+@media (max-width: 1178px) {
+  .toolbar-shortcuts { display: none; }
+}
+
 @media (max-width: 768px) {
   .upload-grid { flex-direction: column; }
   .upload-divider { flex-direction: row; }
@@ -1619,9 +1647,9 @@ body::before {
   .status-seg { padding: 0 8px; }
   .status-color { display: none; }
 
-  /* 工具栏窄屏：快捷键提示让位给按钮本身 */
-  .toolbar-shortcuts { display: none; }
+  /* 工具栏窄屏：快捷键提示已在 1024 断点下线，这里继续压缩缩放控件 */
   .zoom-select { min-width: 48px; }
+  .result-toolbar { gap: 8px; padding: 8px 10px; }
 
   .settings-slider input[type='range'] { width: 110px; }
 }

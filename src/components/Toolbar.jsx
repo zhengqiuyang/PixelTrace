@@ -171,13 +171,15 @@ export default function Toolbar({ stageRef, onOpenSettings, onOpenHelp }) {
         ← 重新选择
       </button>
 
+      {/* 顺序 = 响应式优先级：越靠前越晚被裁掉。
+          与 App.css 里 .toolbar-shortcuts 的 nth-child 断点一一对应，
+          增删提示必须同步改那边的断点，否则会裁错项。 */}
       <div className="toolbar-shortcuts">
         <span className="shortcut-hint" title="视图切换 1-6">1-6 视图</span>
         <span className="shortcut-hint" title="适应窗口">0 适应</span>
         <span className="shortcut-hint" title="放大/缩小 +/-">+/- 缩放</span>
         <span className="shortcut-hint" title="方向键平移画布">↑↓←→ 平移</span>
         <span className="shortcut-hint" title="导出当前视图为 PNG">Ctrl+E 导出</span>
-        <span className="shortcut-hint" title="复制当前视图到剪贴板">Ctrl+C 复制</span>
       </div>
 
       <div className="toolbar-spacer" />
