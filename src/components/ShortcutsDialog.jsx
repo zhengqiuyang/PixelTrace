@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Button } from '@/components/ui/button';
 
 /**
  * 快捷键帮助面板 (PRODUCT.md §11.2)
@@ -92,9 +93,9 @@ export default function ShortcutsDialog({ open, onClose }) {
       </div>
 
       <div className="dialog-actions">
-        <button className="pixel-btn accent" onClick={() => onClose?.()}>
+        <Button variant="accent" size="sm" onClick={() => onClose?.()}>
           知道了
-        </button>
+        </Button>
       </div>
     </dialog>
   );

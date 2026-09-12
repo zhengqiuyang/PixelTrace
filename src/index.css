@@ -1,4 +1,109 @@
 /* ═══════════════════════════════════════════════════════════
+   Tailwind CSS v4 配置 + 主题系统 (PRODUCT.md §15.5)
+   ═══════════════════════════════════════════════════════════
+
+   Tailwind v4 不用 tailwind.config.js，配置全部写在 CSS 里：
+     · @theme 把现有 CSS 变量映射成 Tailwind 的 utility token
+     · @custom-variant 定义暗色模式的匹配规则
+   这样 bg-bg-dark / text-accent / font-pixel 这类 utility
+   直接引用 CSS 变量，主题切换时 utility 自动跟着变。
+   ═══════════════════════════════════════════════════════════ */
+
+@import "tailwindcss";
+
+/* 暗色是默认（无 data-theme 或 data-theme="dark" 都是暗色） */
+@custom-variant dark (&:where(:not([data-theme="light"]) *, :not([data-theme="light"])));
+
+@theme {
+  /* ─── 颜色 token ─── */
+  --color-bg-dark: var(--bg-dark);
+  --color-bg-card: var(--bg-card);
+  --color-bg-hover: var(--bg-hover);
+  --color-bg-main: var(--bg-main);
+
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-dim);
+  --color-accent-bright: var(--accent-bright);
+
+  --color-danger: var(--danger);
+  --color-danger-dim: var(--danger-dim);
+  --color-warn: var(--warn);
+  --color-info: var(--info);
+  --color-alt: var(--alt);
+
+  --color-text: var(--text);
+  --color-text-dim: var(--text-dim);
+  --color-on-accent: var(--on-accent);
+
+  --color-border: var(--border);
+  --color-border-light: var(--border-light);
+
+  --color-b-ok: var(--b-ok);
+  --color-b-warn: var(--b-warn);
+  --color-b-err: var(--b-err);
+  --color-b-info: var(--b-info);
+  --color-b-dim: var(--b-dim);
+
+  --color-stage-void: var(--stage-void);
+  --color-stage-bg: var(--stage-bg);
+
+  /* ─── 字体 ─── */
+  --font-pixel: 'Press Start 2P', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', monospace;
+  --font-mono: 'JetBrains Mono', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', monospace;
+  --font-ui: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC', 'Noto Sans CJK SC', sans-serif;
+
+  /* ─── 圆角 ─── */
+  --radius-pixel: 0px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* ─── 阴影 ─── */
+  --shadow-panel: var(--shadow-panel);
+  --shadow-panel-lg: var(--shadow-panel-lg);
+  --shadow-pop: var(--shadow-pop);
+
+  /* ─── 过渡 ─── */
+  --animate-fade-in: fade-in 200ms ease-out;
+  --animate-slide-up: slide-up 200ms ease-out;
+  --animate-slide-down: slide-down 200ms ease-out;
+  --animate-scale-in: scale-in 200ms ease-out;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-blink: blink 1s step-end infinite;
+}
+
+/* ─── 关键帧 ─── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.15); }
+  50% { box-shadow: 0 0 30px rgba(var(--accent-rgb), 0.3); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* ═══════════════════════════════════════════════════════════
    主题 (PRODUCT.md §15.5)
 
    :root 是暗色（默认），[data-theme='light'] 覆盖成亮色。
@@ -208,6 +313,8 @@
 
   color-scheme: light;
 }
+
+/* ─── 基础重置 ─── */
 
 * {
   margin: 0;

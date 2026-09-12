@@ -229,12 +229,25 @@ npm run dev
 
 ## 技术栈
 
-- **React 19** + **Vite 8**
+- **React 19** + **Vite 8** + **Tailwind CSS v4**
 - 原生 **Canvas 2D** 负责像素计算与渲染，**Web Worker** 承载差异计算
-- **纯 CSS**，无 UI 组件库
+- **shadcn/ui** 组件库（Button / Dialog / Slider / Switch / Select / Sonner 等），基于 Radix UI 原语
+- **Framer Motion** 处理视图切换、拖拽动效与微交互动画
+- **lucide-react** 图标库
 - 状态管理使用 `useReducer` + Context
 
 运行环境要求 Node `^20.19.0 || >=22.12.0`。
+
+### 组件库
+
+本项目使用 **shadcn/ui** 组件模式（非 npm 包，而是复制到项目中的组件源码）：
+
+- 基于 **Radix UI** 原语构建，保证无障碍支持
+- 使用 **Tailwind CSS v4** 的 utility class 做样式
+- 所有组件保留像素/复古视觉风格（无圆角、硬边框、荧光绿）
+- 设计 token 通过 CSS 变量统一驱动，暗色/亮色主题自动切换
+
+已安装组件：Button、Dialog、Slider、Switch、Select、Sonner、ScrollArea、Tooltip、Progress、Label、Checkbox。
 
 ## 项目结构
 
@@ -242,12 +255,15 @@ npm run dev
 src/
 ├── components/   # 视图与 UI 组件（六种视图、变更列表、工具栏、放大镜、导出面板、
 │                 #   批量对比的 BatchView / BatchUploader / BatchResults 等）
+│   └── ui/       # shadcn/ui 组件（Button / Dialog / Slider / Switch / Select /
+│                 #   Sonner / ScrollArea / Tooltip / Progress / Label / Checkbox）
 ├── hooks/        # useZoomPan / useImageDiff / useBatchDiff / useToast
 ├── store/        # AppContext（useReducer 集中状态）
 ├── utils/        # imageDiff 核心算法、imageMetrics 质量指标、diffPipeline 计算序列、
 │                 #   batchPairing 配对、batchResults 归类、batchReport 批量报告、
 │                 #   pairReport 单图报告、reportShell 两份报告共用的外壳与样式、
-│                 #   exporters 导出、imageLoader、constants、canvasDPR、theme 主题
+│                 #   exporters 导出、imageLoader、constants、canvasDPR、theme 主题、
+│                 #   cn 工具函数（clsx + tailwind-merge）
 └── workers/      # diffWorker 单对差异计算、batchWorker 批量差异计算
 ```
 

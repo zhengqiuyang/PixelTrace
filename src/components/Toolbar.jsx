@@ -4,6 +4,11 @@ import { useToast } from '../hooks/useToast.js';
 import { ZOOM_LEVELS } from '../utils/constants.js';
 import { composeCurrentView } from '../utils/exportView.js';
 import { runExport } from '../utils/exporters.js';
+import { Button } from '@/components/ui/button';
+import {
+  RotateCcw, Copy, Settings, Keyboard, Download,
+  Minus, Plus, Maximize,
+} from 'lucide-react';
 
 /**
  * 完整快捷键表 (PRD §11.1)
@@ -166,9 +171,10 @@ export default function Toolbar({ stageRef, exportRef, onOpenSettings, onOpenExp
 
   return (
     <div className="result-toolbar">
-      <button className="pixel-btn" onClick={clearImages}>
-        ← 重新选择
-      </button>
+      <Button variant="outline" size="sm" onClick={clearImages}>
+        <RotateCcw className="h-3.5 w-3.5" />
+        重新选择
+      </Button>
 
       {/* 顺序 = 响应式优先级：越靠前越晚被裁掉。
           与 App.css 里 .toolbar-shortcuts 的 nth-child 断点一一对应，
@@ -184,13 +190,14 @@ export default function Toolbar({ stageRef, exportRef, onOpenSettings, onOpenExp
       <div className="toolbar-spacer" />
 
       <div className="zoom-controls">
-        <button
-          className="zoom-btn"
+        <Button
+          variant="icon"
+          size="icon"
           onClick={() => stageRef?.current?.setZoom(zoom / 1.25)}
           aria-label="缩小"
         >
-          −
-        </button>
+          <Minus className="h-4 w-4" />
+        </Button>
         <select
           className="zoom-select"
           value={zoomPercent}
@@ -201,53 +208,43 @@ export default function Toolbar({ stageRef, exportRef, onOpenSettings, onOpenExp
             <option key={p} value={p}>{p}%</option>
           ))}
         </select>
-        <button
-          className="zoom-btn"
+        <Button
+          variant="icon"
+          size="icon"
           onClick={() => stageRef?.current?.setZoom(zoom * 1.25)}
           aria-label="放大"
         >
-          +
-        </button>
-        <button
-          className="zoom-btn zoom-fit"
+          <Plus className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="icon"
+          size="icon"
           onClick={() => stageRef?.current?.fitToWindow()}
           aria-label="适应窗口"
         >
-          ⊞
-        </button>
+          <Maximize className="h-4 w-4" />
+        </Button>
       </div>
 
-      <button
-        className="pixel-btn"
-        onClick={() => handleCopy()}
-        aria-label="复制当前视图到剪贴板"
-      >
+      <Button variant="outline" size="sm" onClick={() => handleCopy()} aria-label="复制当前视图到剪贴板">
+        <Copy className="h-3.5 w-3.5" />
         复制
-      </button>
+      </Button>
 
-      <button
-        className="pixel-btn"
-        onClick={() => onOpenSettings?.()}
-        aria-label="打开设置面板"
-      >
-        ≡ 设置
-      </button>
+      <Button variant="outline" size="sm" onClick={() => onOpenSettings?.()} aria-label="打开设置面板">
+        <Settings className="h-3.5 w-3.5" />
+        设置
+      </Button>
 
-      <button
-        className="pixel-btn"
-        onClick={() => onOpenHelp?.()}
-        aria-label="查看键盘快捷键"
-      >
-        ⌨ 快捷键
-      </button>
+      <Button variant="outline" size="sm" onClick={() => onOpenHelp?.()} aria-label="查看键盘快捷键">
+        <Keyboard className="h-3.5 w-3.5" />
+        快捷键
+      </Button>
 
-      <button
-        className="pixel-btn accent"
-        onClick={() => onOpenExport?.()}
-        aria-label="打开导出面板"
-      >
-        导出 ↓
-      </button>
+      <Button variant="accent" size="sm" onClick={() => onOpenExport?.()} aria-label="打开导出面板" disabled={exporting}>
+        <Download className="h-3.5 w-3.5" />
+        {exporting ? '导出中...' : '导出'}
+      </Button>
     </div>
   );
 }

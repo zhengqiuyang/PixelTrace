@@ -1,7 +1,10 @@
 import { useRef, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../hooks/useToast.js';
 import { loadImageFromFile, imageFromDataUrl } from '../utils/imageLoader.js';
 import Dialog from './Dialog';
+import { Button } from '@/components/ui/button';
+import { UploadCloud, XCircle } from 'lucide-react';
 import {
   SUPPORTED_FORMATS,
   SUPPORTED_EXTENSIONS,
@@ -202,19 +205,26 @@ export default function ImageUploader({ label, onImageLoad, side: _side }) {
             {meta.width} × {meta.height} | {formatSize(meta.fileSize)} | {meta.format}
           </p>
         )}
-        <button className="pixel-btn small" onClick={reset}>✕ 移除</button>
+        <Button variant="outline" size="sm" onClick={reset} className="uploader-remove">
+          <XCircle className="h-3.5 w-3.5" />
+          移除
+        </Button>
       </div>
     );
   } else if (state === UPLOAD_STATES.LOADING) {
     content = (
-      <div className="uploader-zone loading">
+      <motion.div
+        className="uploader-zone loading"
+        animate={{ opacity: [0.6, 1, 0.6] }}
+        transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+      >
         <div className="uploader-loading">
           <span className="loading-pixel">█</span>
           <span className="loading-pixel">▀</span>
           <span className="loading-pixel">█</span>
         </div>
         <p className="uploader-hint">加载中...</p>
-      </div>
+      </motion.div>
     );
   } else if (state === UPLOAD_STATES.ERROR) {
     content = (
@@ -230,13 +240,20 @@ export default function ImageUploader({ label, onImageLoad, side: _side }) {
     );
   } else {
     content = (
-      <div
+      <motion.div
         className={`uploader-zone ${state === UPLOAD_STATES.DRAG_OVER ? 'drag-over' : ''}`}
         onDrop={handleDrop}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onClick={() => inputRef.current?.click()}
+        animate={
+          state === UPLOAD_STATES.DRAG_OVER
+            ? { scale: 1.02, borderColor: 'var(--accent)' }
+            : { scale: 1, borderColor: 'var(--border)' }
+        }
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        whileHover={{ scale: 1.01 }}
       >
         <input
           ref={inputRef}
@@ -245,17 +262,41 @@ export default function ImageUploader({ label, onImageLoad, side: _side }) {
           style={{ display: 'none' }}
           onChange={(e) => handleFile(e.target.files?.[0])}
         />
-        <div className="uploader-icon">
-          <span className="pixel-bracket">[</span>
-          <span className="pixel-plus">+</span>
-          <span className="pixel-bracket">]</span>
-        </div>
+        <AnimatePresence mode="wait">
+          {state === UPLOAD_STATES.DRAG_OVER ? (
+            <motion.div
+              key="drag-over"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.15 }}
+              className="uploader-icon"
+            >
+              <span className="pixel-bracket" style={{ color: 'var(--accent)' }}>[</span>
+              <UploadCloud className="h-8 w-8 text-accent" style={{ display: 'inline-block', verticalAlign: 'middle' }} />
+              <span className="pixel-bracket" style={{ color: 'var(--accent)' }}>]</span>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="default"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="uploader-icon"
+            >
+              <span className="pixel-bracket">[</span>
+              <span className="pixel-plus">+</span>
+              <span className="pixel-bracket">]</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <p className="uploader-label">{label}</p>
         <p className="uploader-hint">
           {state === UPLOAD_STATES.DRAG_OVER ? '释放以上传' : '拖放图片或点击选择'}
         </p>
         <p className="uploader-formats">JPG / PNG / WebP / GIF</p>
-      </div>
+      </motion.div>
     );
   }
 

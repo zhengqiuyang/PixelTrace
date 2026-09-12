@@ -2709,3 +2709,164 @@ body::before {
   .batch-table thead th:nth-child(8),
   .batch-table td:nth-child(8) { display: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   shadcn/ui 组件样式补丁
+   以下样式让 shadcn/ui 组件在像素/复古风格下正常显示。
+   大部分通过 Tailwind utility class 处理，这里只补 CSS
+   里无法覆盖的部分（原生 input 的样式重置）。
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── shadcn Slider ─── */
+/* Radix Slider 的 Thumb 默认是圆形的，像素风格下改成方形 */
+[data-radix-slider-thumb] {
+  border-radius: 0 !important;
+  background: var(--accent) !important;
+  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.4) !important;
+  cursor: grab;
+}
+[data-radix-slider-thumb]:active {
+  cursor: grabbing;
+}
+[data-radix-slider-range] {
+  background: var(--accent) !important;
+}
+[data-radix-slider-track] {
+  background: var(--bg-hover) !important;
+  height: 4px !important;
+  border-radius: 0 !important;
+}
+
+/* ─── shadcn Switch ─── */
+/* Radix Switch 的 Thumb 默认是圆形的，像素风格下改成方形 */
+[data-radix-switch-thumb] {
+  border-radius: 0 !important;
+  background: var(--text) !important;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+[data-state="checked"] [data-radix-switch-thumb] {
+  background: var(--on-accent) !important;
+}
+
+/* ─── shadcn Select ─── */
+/* 下拉菜单的滚动条样式 */
+[data-radix-select-viewport] {
+  scrollbar-width: thin;
+}
+
+/* ─── shadcn Tooltip ─── */
+[data-radix-tooltip-content] {
+  border-radius: 0 !important;
+  font-family: var(--font-ui);
+}
+
+/* ─── Sonner Toaster ─── */
+/* 像素风格的通知：硬边框、无圆角 */
+[data-sonner-toaster] [data-toast] {
+  border-radius: 0 !important;
+  font-family: var(--font-ui);
+  border-width: 1px !important;
+  background: var(--bg-card) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+  box-shadow: var(--shadow-panel-lg) !important;
+  padding: 10px 14px !important;
+  font-size: 13px !important;
+}
+[data-sonner-toaster] [data-toast][data-type="success"] {
+  border-color: var(--accent) !important;
+}
+[data-sonner-toaster] [data-toast][data-type="error"] {
+  border-color: var(--danger) !important;
+}
+[data-sonner-toaster] [data-toast][data-type="warning"] {
+  border-color: var(--warn) !important;
+}
+[data-sonner-toaster] [data-toast][data-type="info"] {
+  border-color: var(--info) !important;
+}
+[data-sonner-toaster] [data-icon] {
+  color: var(--accent);
+}
+[data-sonner-toaster] [data-type="error"] [data-icon] {
+  color: var(--danger);
+}
+[data-sonner-toaster] [data-type="warning"] [data-icon] {
+  color: var(--warn);
+}
+
+/* ─── 工具栏按钮优化 ─── */
+.result-toolbar .result-toolbar > * {
+  /* 让按钮在工具栏内对齐 */
+}
+
+/* 工具栏中的 Select 样式 */
+.zoom-select {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  padding: 4px 8px;
+  height: 32px;
+  border-radius: 0;
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+.zoom-select:hover {
+  border-color: rgba(var(--accent-rgb), 0.4);
+}
+.zoom-select:focus {
+  border-color: var(--accent);
+  outline: 2px dashed var(--accent);
+  outline-offset: 1px;
+}
+
+/* ─── 上传区域拖拽动效增强 ─── */
+.uploader-zone.drag-over {
+  border-color: var(--accent) !important;
+  background: rgba(var(--accent-rgb), 0.04) !important;
+}
+.uploader-zone.drag-over .uploader-icon {
+  color: var(--accent);
+}
+
+/* 上传预览中的移除按钮 */
+.uploader-remove {
+  margin-top: 8px;
+  display: inline-flex;
+}
+
+/* ─── 进度条（批量处理） ─── */
+.batch-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+.batch-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-hover);
+  border-radius: 0;
+  overflow: hidden;
+}
+.batch-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.3);
+  transition: width 0.3s ease;
+}
+.batch-progress-text {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-width: 80px;
+  text-align: right;
+}

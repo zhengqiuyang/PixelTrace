@@ -9,13 +9,20 @@ import {
   DIFF_MODES,
   SHIFT_TOLERANCE_OPTIONS,
 } from '../utils/constants.js';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 /**
  * 设置面板 (PRODUCT.md §9.3)
  *
- * 原生 <dialog> + showModal()，与 Dialog / SizeMismatchDialog 同一套弹窗机制。
+ * 使用原生 <dialog> + showModal()，与 ShortcutsDialog / ExportDialog 同一套弹窗机制。
  * 所有改动即时生效（updateSettings → 触发 useImageDiff 重算 / 画布重绘），
  * 因此不需要「确定」按钮，底部只留「恢复默认」与「完成」。
+ *
+ * 控件使用 shadcn/ui 的 Slider / Switch / Label，
+ * 但保留像素风格的视觉设计（无圆角、硬边框、荧光绿）。
  *
  * 注意：§9.3 里的「渲染精度 (1x/0.5/0.25)」没有做进来 —— 它需要六个视图
  * 连同差异计算一起改成可变分辨率渲染，属于独立的一块工作，先不放假控件。
@@ -35,17 +42,17 @@ function Row({ label, hint, children }) {
 }
 
 /** 滑块 + 数值 */
-function Slider({ value, min, max, step = 1, suffix = '', onChange, ariaLabel }) {
+function SliderControl({ value, min, max, step = 1, suffix = '', onChange, ariaLabel }) {
   return (
     <div className="settings-slider">
-      <input
-        type="range"
+      <Slider
         min={min}
         max={max}
         step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        value={[value]}
+        onValueChange={([v]) => onChange(v)}
         aria-label={ariaLabel}
+        className="settings-slider-input"
       />
       <span className="settings-slider-value">
         {value}
@@ -58,18 +65,13 @@ function Slider({ value, min, max, step = 1, suffix = '', onChange, ariaLabel })
 /** 开关 */
 function Toggle({ checked, onChange, ariaLabel, disabled = false }) {
   return (
-    <label className={`settings-toggle ${disabled ? 'disabled' : ''}`}>
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-        aria-label={ariaLabel}
-      />
-      <span className="settings-toggle-track" aria-hidden="true">
-        <span className="settings-toggle-thumb" />
-      </span>
-    </label>
+    <Switch
+      checked={checked}
+      disabled={disabled}
+      onCheckedChange={onChange}
+      aria-label={ariaLabel}
+      id={ariaLabel}
+    />
   );
 }
 
@@ -143,7 +145,7 @@ export default function SettingsPanel({ open, onClose }) {
         <section className="settings-section">
           <h4 className="settings-section-title">差异检测</h4>
           <Row label="阈值" hint="越大越只保留明显差异">
-            <Slider
+            <SliderControl
               value={settings.threshold}
               min={MIN_THRESHOLD}
               max={MAX_THRESHOLD}
@@ -152,7 +154,7 @@ export default function SettingsPanel({ open, onClose }) {
             />
           </Row>
           <Row label="最小区域面积" hint="小于该面积的差异会被忽略">
-            <Slider
+            <SliderControl
               value={settings.minArea}
               min={MIN_AREA_MIN}
               max={MIN_AREA_MAX}
@@ -162,7 +164,7 @@ export default function SettingsPanel({ open, onClose }) {
             />
           </Row>
           <Row label="合并距离" hint="距离小于该值的区域会合并">
-            <Slider
+            <SliderControl
               value={settings.mergeDistance}
               min={MERGE_DISTANCE_MIN}
               max={MERGE_DISTANCE_MAX}
@@ -251,7 +253,7 @@ export default function SettingsPanel({ open, onClose }) {
         <section className="settings-section">
           <h4 className="settings-section-title">缩放与平移</h4>
           <Row label="滚轮缩放速度">
-            <Slider
+            <SliderControl
               value={settings.zoomStepPercent}
               min={ZOOM_STEP_PERCENT_MIN}
               max={ZOOM_STEP_PERCENT_MAX}
@@ -289,12 +291,12 @@ export default function SettingsPanel({ open, onClose }) {
       </div>
 
       <div className="dialog-actions">
-        <button className="pixel-btn" onClick={() => resetSettings()}>
+        <Button variant="outline" size="sm" onClick={() => resetSettings()}>
           恢复默认
-        </button>
-        <button className="pixel-btn accent" onClick={() => onClose?.()}>
+        </Button>
+        <Button variant="accent" size="sm" onClick={() => onClose?.()}>
           完成
-        </button>
+        </Button>
       </div>
     </dialog>
   );

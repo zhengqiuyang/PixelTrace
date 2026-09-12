@@ -9,6 +9,9 @@ import {
   kindSupportsMarkers,
   runExport,
 } from '../utils/exporters.js';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 
 /**
  * 导出面板 (PRODUCT.md §10.1 / §10.2)
@@ -82,18 +85,13 @@ function Row({ label, hint, children }) {
 
 function Toggle({ checked, onChange, ariaLabel, disabled = false }) {
   return (
-    <label className={`settings-toggle ${disabled ? 'disabled' : ''}`}>
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-        aria-label={ariaLabel}
-      />
-      <span className="settings-toggle-track" aria-hidden="true">
-        <span className="settings-toggle-thumb" />
-      </span>
-    </label>
+    <Switch
+      checked={checked}
+      disabled={disabled}
+      onCheckedChange={onChange}
+      aria-label={ariaLabel}
+      id={ariaLabel}
+    />
   );
 }
 
@@ -214,13 +212,13 @@ function ExportPanel({ exportRef, onClose }) {
             {showQuality && (
               <Row label="质量" hint="仅 JPEG / WebP 有效">
                 <div className="export-slider">
-                  <input
-                    type="range"
+                  <Slider
                     min={EXPORT_QUALITY_MIN}
                     max={EXPORT_QUALITY_MAX}
-                    value={opts.quality}
-                    onChange={(e) => set({ quality: Number(e.target.value) })}
+                    value={[opts.quality]}
+                    onValueChange={([v]) => set({ quality: v })}
                     aria-label="导出质量"
+                    className="settings-slider-input"
                   />
                   <span className="export-slider-value">{opts.quality}%</span>
                 </div>
@@ -259,12 +257,12 @@ function ExportPanel({ exportRef, onClose }) {
       </div>
 
       <div className="dialog-actions">
-        <button className="pixel-btn" onClick={() => onClose?.()} disabled={busy}>
+        <Button variant="outline" size="sm" onClick={() => onClose?.()} disabled={busy}>
           取消
-        </button>
-        <button className="pixel-btn accent" onClick={handleExport} disabled={busy}>
-          {busy ? '导出中...' : '导出 ↓'}
-        </button>
+        </Button>
+        <Button variant="accent" size="sm" onClick={handleExport} disabled={busy}>
+          {busy ? '导出中...' : '导出'}
+        </Button>
       </div>
     </>
   );

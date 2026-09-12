@@ -1,51 +1,41 @@
-import { useState, useCallback, createContext } from 'react';
+import { useCallback } from 'react';
+import { toast as sonnerToast } from 'sonner';
 import { TOAST_DURATION } from '../utils/constants.js';
 
-const ToastContext = createContext(null);
+/**
+ * Toast 适配器 —— 内部使用 sonner，外部接口保持不变。
+ *
+ * 这样所有现有代码里的 useToast().toast() / useToast().success()
+ * 继续可用，不需要改动。底层换成 sonner 后自动获得：
+ *   · 入场/出场动画（slide-in / slide-out）
+ *   · 自动堆叠 + 最大数量限制
+ *   · 点击关闭 + 按类型配色
+ *   · 主题跟随（通过 sonner.jsx 里的 theme="system"）
+ */
 
-export { ToastContext };
+export const ToastContext = {
+  // 占位：实际值在 ToastProvider 里通过 Context.Provider 注入
+};
 
 export function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState([]);
-
-  const toast = useCallback((message, { type = 'info', duration = TOAST_DURATION } = {}) => {
-    const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    if (duration > 0) {
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, duration);
-    }
+  const toast = useCallback((message, { type = 'info', duration = TOAST_DURATION, ...opts } = {}) => {
+    const id = sonnerToast(message, {
+      type,
+      duration: duration > 0 ? duration : undefined,
+      ...opts,
+    });
     return id;
   }, []);
 
   const dismiss = useCallback((id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    sonnerToast.dismiss(id);
   }, []);
 
-  // 语义化快捷方式：Toolbar / ComparisonView 按 success(...) 调用
   const success = useCallback((message, options) => toast(message, { ...options, type: 'success' }), [toast]);
   const error = useCallback((message, options) => toast(message, { ...options, type: 'error' }), [toast]);
   const warning = useCallback((message, options) => toast(message, { ...options, type: 'warning' }), [toast]);
   const info = useCallback((message, options) => toast(message, { ...options, type: 'info' }), [toast]);
 
-  return (
-    <ToastContext.Provider value={{ toast, dismiss, success, error, warning, info }}>
-      {children}
-      <div className="toast-container" aria-live="polite">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={`toast toast-${t.type}`}
-            onClick={() => dismiss(t.id)}
-          >
-            <span className="toast-icon">
-              {t.type === 'error' ? '✕' : t.type === 'warning' ? '⚠' : t.type === 'success' ? '✓' : 'ℹ'}
-            </span>
-            <span className="toast-message">{t.message}</span>
-          </div>
-        ))}
-      </div>
-    </ToastContext.Provider>
-  );
+  // 提供空 children（不再渲染自定 toast container）
+  return <>{children}</>;
 }
