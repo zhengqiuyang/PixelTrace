@@ -63,6 +63,11 @@ const {
   runExport,
 } = await import('../src/utils/exporters.js');
 
+const {
+  buildPairReportHtml,
+  buildPairReportFilename,
+} = await import('../src/utils/pairReport.js');
+
 let passed = 0;
 let failed = 0;
 
@@ -111,10 +116,10 @@ const SETTINGS = {
 // ─── 1. 静态表 ───
 
 console.log('\n─── 1. 静态表 ───');
-check('导出内容有 4 类', EXPORT_KINDS.length, 4);
+check('导出内容有 5 类', EXPORT_KINDS.length, 5);
 check('导出格式有 3 种', EXPORT_FORMATS.length, 3);
-ok('四类导出物的 key 与 runExport 分支一致',
-  EXPORT_KINDS.every((k) => ['view', 'full', 'report', 'csv'].includes(k.key)),
+ok('五类导出物的 key 与 runExport 分支一致',
+  EXPORT_KINDS.every((k) => ['view', 'full', 'report', 'html', 'csv'].includes(k.key)),
   EXPORT_KINDS.map((k) => k.key).join(','));
 ok('每种格式都有 mime', EXPORT_FORMATS.every((f) => typeof f.mime === 'string' && f.mime.includes('/')));
 check('PNG 标记为无损', getFormat('png').lossy, false);
@@ -201,10 +206,12 @@ check('当前视图会产图', kindProducesImage('view'), true);
 check('全分辨率会产图', kindProducesImage('full'), true);
 check('报告会产图', kindProducesImage('report'), true);
 check('CSV 不产图', kindProducesImage('csv'), false);
+check('HTML 报告不产图（格式/质量对它无意义）', kindProducesImage('html'), false);
 
 check('当前视图不画区域框（所见即所得）', kindSupportsMarkers('view'), false);
 check('全分辨率可画区域框', kindSupportsMarkers('full'), true);
 check('报告可画区域框', kindSupportsMarkers('report'), true);
+check('HTML 报告可画区域框（否则看不出哪块被判成变更）', kindSupportsMarkers('html'), true);
 check('CSV 无区域框概念', kindSupportsMarkers('csv'), false);
 
 // ─── 6. runExport 分支守卫 ───
@@ -227,6 +234,17 @@ ok('全分辨率：给出原因', r.error.includes('尚未就绪'), r.error);
 r = await runExport({ view: 'slider', mask: null, width: 0, height: 0 }, { kind: 'report' });
 check('报告：没有 mask 时同样失败', r.ok, false);
 
+r = await runExport({ view: 'slider', mask: null, width: 0, height: 0 }, { kind: 'html' });
+check('HTML 报告：没有 mask 时同样失败', r.ok, false);
+ok('HTML 报告：给出原因', r.error.includes('尚未就绪'), r.error);
+
+r = await runExport(
+  { view: 'slider', mask: new Uint8Array(4), width: 2, height: 2, baseImage: null },
+  { kind: 'html' }
+);
+check('HTML 报告：没有原图时失败', r.ok, false);
+ok('HTML 报告：指出缺原图', r.error.includes('原始图片'), r.error);
+
 // ─── 7. runExport CSV 端到端 ───
 
 console.log('\n─── 7. runExport CSV 端到端 ───');
@@ -246,6 +264,164 @@ const downloadedText = await globalThis.__lastBlob.text();
 ok('下载内容与 buildRegionsCsv 一致', downloadedText === buildRegionsCsv(REGIONS, STATS));
 ok('下载内容带 BOM', downloadedText.charCodeAt(0) === 0xfeff);
 check('下载 Blob 的 MIME', globalThis.__lastBlob.type, 'text/csv;charset=utf-8');
+
+// ─── 8. 单图 HTML 报告 ───
+
+console.log('\n─── 8. 单图 HTML 报告 ───');
+
+const REGIONS_M = [
+  // 故意让小的排在前面，验证报告里会按面积降序重排
+  { id: 2, x: 100, y: 80, width: 40, height: 30, pixels: 1200, percentage: 2.0833,
+    center: { x: 120, y: 95 },
+    metrics: { meanDeltaE: 12.5, maxDeltaE: 30.1, meanLumaShift: -4.2, meanAbsLumaShift: 4.2, sampled: 1200, total: 1200 } },
+  { id: 1, x: 10, y: 20, width: 60, height: 60, pixels: 3600, percentage: 6.25,
+    center: { x: 40, y: 50 },
+    metrics: { meanDeltaE: 82.4, maxDeltaE: 88.7, meanLumaShift: 210, meanAbsLumaShift: 210, sampled: 3600, total: 3600 } },
+];
+
+const STATS_M = {
+  totalPixels: 76800,
+  diffCount: 4944,
+  diffPercentage: 6.4375,
+  regionCount: 2,
+  metrics: { mse: 12.3456, psnr: 37.21, ssim: 0.9876 },
+};
+
+const IMG_META = {
+  a: { fileName: 'before.png', width: 320, height: 240, fileSize: 12345, format: 'PNG' },
+  b: { fileName: 'after.png', width: 320, height: 240, fileSize: 23456, format: 'JPEG' },
+};
+const IMAGES = {
+  a: 'data:image/jpeg;base64,AAA',
+  b: 'data:image/jpeg;base64,BBB',
+  diff: 'data:image/png;base64,CCC',
+};
+
+const pairHtml = buildPairReportHtml({
+  view: 'highlight',
+  settings: { ...SETTINGS, diffMode: 'rgb', antiAlias: true, ignoreShift: 0 },
+  width: 320,
+  height: 240,
+  regions: REGIONS_M,
+  stats: STATS_M,
+  imageMeta: IMG_META,
+  images: IMAGES,
+  imageMaxDim: 1200,
+});
+
+ok('是完整 HTML 文档', pairHtml.startsWith('<!doctype html>') && pairHtml.trimEnd().endsWith('</html>'));
+ok('标题含「单图差异报告」', pairHtml.includes('<title>PixelTrace 单图差异报告'));
+ok('正文标题是「单图差异报告」', pairHtml.includes('<h1>单图差异报告</h1>'));
+
+// 结论横幅
+ok('结论判定为「有差异」', pairHtml.includes('<b>有差异</b>'));
+ok('结论给出差异像素数与占比',
+  pairHtml.includes('4,944') && pairHtml.includes('6.438%'), '');
+ok('结论提到形成 2 处区域', pairHtml.includes('形成 2 处变更区域'));
+
+// 三联图
+check('嵌入 3 张图（原始 / 修改后 / 差异）', (pairHtml.match(/<img /g) ?? []).length, 3);
+ok('三张图都是内联 data URL',
+  pairHtml.includes('data:image/jpeg;base64,AAA')
+  && pairHtml.includes('data:image/jpeg;base64,BBB')
+  && pairHtml.includes('data:image/png;base64,CCC'));
+ok('如实说明嵌入图已缩放', pairHtml.includes('长边 ≤ 1200 px'));
+
+// 指标卡片
+ok('指标含差异像素 4,944', pairHtml.includes('<b>4,944</b>'));
+ok('指标含差异占比 6.438%', pairHtml.includes('<b>6.438%</b>'));
+ok('指标含最大 ΔE 88.7', pairHtml.includes('<b>88.7</b>'));
+ok('指标含 MSE 12.3456', pairHtml.includes('<b>12.3456</b>'));
+ok('指标含 PSNR 37.21', pairHtml.includes('<b>37.21</b>'));
+ok('指标含 SSIM 0.9876', pairHtml.includes('<b>0.9876</b>'));
+
+// 参数快照
+ok('参数含阈值 30', pairHtml.includes('阈值</span><code>30</code>'));
+ok('参数含最小区域 50 px', pairHtml.includes('最小区域</span><code>50 px</code>'));
+ok('参数含合并距离 10 px', pairHtml.includes('合并距离</span><code>10 px</code>'));
+ok('参数含比较口径', pairHtml.includes('比较口径</span><code>RGB 均值</code>'));
+ok('参数含抗锯齿状态', pairHtml.includes('抗锯齿过滤</span><code>开</code>'));
+ok('参数含高亮色', pairHtml.includes('高亮色</span><code>#ff3366</code>'));
+ok('参数含差异计算区尺寸', pairHtml.includes('差异计算区</span><code>320×240</code>'));
+
+// 文件信息
+ok('文件信息含原始文件名', pairHtml.includes('before.png'));
+ok('文件信息含修改后文件名', pairHtml.includes('after.png'));
+ok('文件信息含尺寸', pairHtml.includes('320×240'));
+ok('文件信息含体积（12.1 KB）', pairHtml.includes('12.1 KB'), '');
+ok('文件信息含格式', pairHtml.includes('JPEG'));
+
+// 区域表
+const regionTrs = (pairHtml.match(/<tr>\s*<td class="c-num">\d+<\/td>/g) ?? []).length;
+check('区域表 2 行', regionTrs, 2);
+ok('区域按面积降序（60×60 排在 40×30 前）',
+  pairHtml.indexOf('60×60') < pairHtml.indexOf('40×30'), '');
+ok('区域含像素数', pairHtml.includes('<td class="c-num">3,600</td>'));
+ok('区域含平均 ΔE', pairHtml.includes('<td class="c-num">82.4</td>'));
+ok('区域含最大 ΔE', pairHtml.includes('<td class="c-num">88.7</td>'));
+ok('亮度偏移带正号', pairHtml.includes('<td class="c-num">+210.0</td>'), '');
+ok('亮度偏移保留负号', pairHtml.includes('<td class="c-num">-4.2</td>'), '');
+ok('区域含中心坐标', pairHtml.includes('<td class="c-num">40, 50</td>'));
+
+// 自包含性
+ok('无外部资源引用（自包含）', !/<(script|link|img)[^>]+(src|href)="https?:/.test(pairHtml));
+
+// 三档结论
+const sameHtml = buildPairReportHtml({
+  view: 'slider',
+  settings: SETTINGS,
+  width: 320,
+  height: 240,
+  regions: [],
+  stats: { totalPixels: 76800, diffCount: 0, diffPercentage: 0, regionCount: 0 },
+  imageMeta: IMG_META,
+  images: IMAGES,
+  imageMaxDim: 1200,
+});
+ok('diffCount=0 → 判定「一致」', sameHtml.includes('<b>一致</b>'));
+ok('一致时不显示区域表内容', sameHtml.includes('没有达到「最小区域」标准的变更'));
+ok('一致时 SSIM 仍给出', sameHtml.includes('<b>0.9876</b>') || sameHtml.includes('SSIM'));
+
+const noiseHtml = buildPairReportHtml({
+  view: 'slider',
+  settings: SETTINGS,
+  width: 320,
+  height: 240,
+  regions: [],
+  stats: { totalPixels: 76800, diffCount: 5, diffPercentage: 0.0065, regionCount: 0 },
+  imageMeta: IMG_META,
+  images: IMAGES,
+  imageMaxDim: 1200,
+});
+ok('有差异像素但无区域 → 判定「微差」', noiseHtml.includes('<b>微差</b>'));
+ok('微差时说明不是真实改动', noiseHtml.includes('不是真实改动'));
+
+// 极端输入
+const bareHtml = buildPairReportHtml({ view: 'slider', width: 2, height: 2 });
+ok('无 stats / 无区域 / 无图时不崩', bareHtml.includes('<!doctype html>'));
+ok('缺图时给出占位而不是静默少一格', bareHtml.includes('cmp-missing'));
+
+const xssHtml = buildPairReportHtml({
+  view: 'slider',
+  settings: SETTINGS,
+  width: 2,
+  height: 2,
+  regions: [],
+  stats: { diffCount: 0, diffPercentage: 0, regionCount: 0 },
+  imageMeta: { a: { fileName: '<script>alert(1)</script>.png', width: 2, height: 2 } },
+  images: {},
+});
+ok('文件名里的尖括号被转义', xssHtml.includes('&lt;script&gt;') && !xssHtml.includes('<script>alert'));
+
+// 文件名
+const repName = buildPairReportFilename('before.png');
+ok('报告文件名带原图名：pixeltrace_report_before_{ts}.html',
+  /^pixeltrace_report_before_\d{8}-\d{6}\.html$/.test(repName), repName);
+const repNameBad = buildPairReportFilename('a/b:c*d?e.png');
+ok('非法字符被替换掉', !/[\\/:*?"<>|]/.test(repNameBad), repNameBad);
+const repNameLong = buildPairReportFilename(`${'x'.repeat(200)}.png`);
+ok('超长文件名被截断', repNameLong.length < 120, String(repNameLong.length));
+ok('无文件名时有兜底', buildPairReportFilename(null).includes('_report_'), buildPairReportFilename(null));
 
 console.log(`\n${'='.repeat(46)}`);
 console.log(`通过 ${passed} 项，失败 ${failed} 项`);

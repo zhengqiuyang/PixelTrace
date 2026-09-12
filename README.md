@@ -77,23 +77,41 @@ PixelTrace 把整套差异计算放在本地 Canvas + Web Worker 里跑，不依
 
 ### 导出与分享
 
-点工具栏「导出 ↓」或按 `Ctrl+Shift+E` 打开导出面板，四类导出物：
+点工具栏「导出 ↓」或按 `Ctrl+Shift+E` 打开导出面板，五类导出物：
 
 | 导出内容 | 产物 |
 |----------|------|
 | **当前视图** | 所见即所得的视口截图 |
 | **全分辨率差异图** | 按原图尺寸渲染的差异高亮图（灰度底图 + 高亮差异 + 区域框编号），不受视口与缩放影响 |
 | **差异报告** | 差异图 PNG + 元数据 JSON，共两个文件 |
+| **HTML 报告** | 一个自包含 `.html`：三联图（原始 / 修改后 / 差异）+ 结论横幅 + 八项质量指标 + 检测参数快照 + 逐区域明细 |
 | **变更列表 CSV** | 全部变更区域的编号、坐标、尺寸与占比，含统计汇总行 |
 
 图片类导出可选 **PNG / JPEG / WebP** 与质量（仅 JPEG/WebP），并可叠加**水印**与**区域标记**。
-面板按依赖动态显隐，不摆无效控件：CSV 无格式选项、差异报告固定 PNG+JSON、PNG 下不显示质量滑块。
+面板按依赖动态显隐，不摆无效控件：CSV 无格式选项、HTML 报告只留区域标记（格式与质量由报告自己决定）、
+差异报告固定 PNG+JSON、PNG 下不显示质量滑块。
+
+**「差异报告」和「HTML 报告」不是一回事**，分工按「给谁看」划分：
+
+| | 差异报告 | HTML 报告 |
+|---|---|---|
+| 产物 | PNG + JSON，两个文件 | 单个 `.html` |
+| 读者 | 程序 / 归档脚本 | 人 |
+| 内容 | 像素结果 + 结构化元数据 | 结论、对照图、指标、参数、区域表 |
+| 场景 | 接进流水线做追溯 | 转发、评审、打印成 PDF |
+
+HTML 报告的第一屏就是结论（`一致` / `微差` / `有差异`），再往下才是证据——
+用的是和批量报告同一套三档判定与同一份样式外壳，两处对同一份差异不会给出不同判断。
+
+> 报告里的图片全部内联为 data URL，**零外部依赖**：断网可打开、可直接当附件发出、
+> 可打印成 PDF。嵌入图长边缩到 1200px 以内（原尺寸写在「文件信息」里），
+> 否则 4096² 的原图会把报告撑成几十 MB。
+>
+> CSV 带 UTF-8 BOM 与 CRLF 换行，Excel 直接打开中文表头不乱码；
+> 报告 JSON 记录了两个原图文件名与当时的检测参数快照，便于归档追溯。
 
 - **快速导出** —— `Ctrl+E` / `E` / `Ctrl+S` 直接导出当前视图 PNG，不弹面板
 - **复制到剪贴板** —— `Ctrl+C` 直接粘贴进飞书 / 钉钉 / 微信分享
-
-> CSV 带 UTF-8 BOM 与 CRLF 换行，Excel 直接打开中文表头不乱码；
-> 报告 JSON 记录了两个原图文件名与当时的检测参数快照，便于归档追溯。
 
 ### 文件夹批量对比
 
@@ -182,7 +200,7 @@ npm run dev
 | `npm test` | 跑全部单元测试（差异算法 + 质量指标 + 导出 + 文件夹配对） |
 | `npm run test-diff` | 差异算法的已知答案测试（纯函数，不需要浏览器） |
 | `npm run test-metrics` | 质量指标的已知答案测试（对照公开参考值） |
-| `npm run test-exporters` | 导出产物的结构测试（文件名 / CSV / 报告 JSON） |
+| `npm run test-exporters` | 导出产物的结构测试（文件名 / CSV / 报告 JSON / 单图 HTML 报告） |
 | `npm run test-batch` | 文件夹配对的三轮规则、歧义与非图片排除测试 |
 | `npm run verify-dpr` | 打开渲染自检页，验证高分辨率渲染未退化 |
 | `npm run verify-export` | 打开导出合成自检页，验证多画布裁剪还原 |
@@ -205,7 +223,8 @@ src/
 ├── hooks/        # useZoomPan / useImageDiff / useBatchDiff / useToast
 ├── store/        # AppContext（useReducer 集中状态）
 ├── utils/        # imageDiff 核心算法、imageMetrics 质量指标、diffPipeline 计算序列、
-│                 #   batchPairing 配对、batchResults 归类、batchReport 报告、
+│                 #   batchPairing 配对、batchResults 归类、batchReport 批量报告、
+│                 #   pairReport 单图报告、reportShell 两份报告共用的外壳与样式、
 │                 #   exporters 导出、imageLoader、constants、canvasDPR
 └── workers/      # diffWorker 单对差异计算、batchWorker 批量差异计算
 ```
@@ -231,6 +250,7 @@ src/
 - [x] 复制当前视图到剪贴板
 - [x] 质量指标（PSNR / SSIM / MSE / 逐区域 ΔE76）与 RGB 直方图
 - [x] 多格式导出（PNG / JPEG / WebP）与差异报告、变更列表 CSV、水印、区域标记
+- [x] 单图 HTML 差异报告（三联图 + 结论 + 指标 + 参数快照 + 区域明细，自包含可离线/打印）
 - [x] 文件夹批量对比（三轮配对 + 三档状态 + 自包含 HTML 报告 / CSV）
 - [ ] 版本序列对比（同一张图跨多个版本的时间线）
 - [ ] 渲染精度档位（1x / 0.5 / 0.25）

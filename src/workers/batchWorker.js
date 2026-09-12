@@ -13,6 +13,7 @@
 
 import { computePairResult } from '../utils/diffPipeline.js';
 import { hexToRgb } from '../utils/imageDiff.js';
+import { summarizeDeltaE } from '../utils/imageMetrics.js';
 
 /** 默认预览长边上限 */
 const PREVIEW_MAX = 240;
@@ -71,23 +72,6 @@ function buildPreview(baseData, mask, w, h, highlightColor, maxDim) {
   }
 
   return { data: out, width: pw, height: ph };
-}
-
-/** 区域级 ΔE 汇总成一对图的单一读数 */
-function summarizeDeltaE(regions) {
-  if (!regions.length) return { maxDeltaE: 0, meanDeltaE: 0 };
-  let maxDeltaE = 0;
-  let weighted = 0;
-  let weight = 0;
-  for (const r of regions) {
-    const m = r.metrics;
-    if (!m) continue;
-    if (m.maxDeltaE > maxDeltaE) maxDeltaE = m.maxDeltaE;
-    // 按区域像素数加权，避免一个 3px 的小区域和大区域等权拉偏整体均值
-    weighted += m.meanDeltaE * r.pixels;
-    weight += r.pixels;
-  }
-  return { maxDeltaE, meanDeltaE: weight > 0 ? weighted / weight : 0 };
 }
 
 self.onmessage = function (e) {

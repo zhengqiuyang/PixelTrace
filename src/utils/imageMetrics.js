@@ -266,6 +266,30 @@ export function computeRegionMetrics(a, b, mask, regions) {
 
 // ─── 展示辅助 ───────────────────────────────────────────
 
+/**
+ * 把逐区域 ΔE 汇总成一对图的单一读数。
+ *
+ * 均值按区域像素数加权 —— 一个 3px 的小区域和一个 3600px 的大区域等权，
+ * 会让整体均值被小区域里那几个极端像素带偏。
+ *
+ * 放在这里而不是 batchWorker 里：批量 worker 与单图报告都要用，
+ * 两边各写一份的话同一个 diff 会在两个地方显示不同的 ΔE。
+ */
+export function summarizeDeltaE(regions) {
+  if (!regions?.length) return { maxDeltaE: 0, meanDeltaE: 0 };
+  let maxDeltaE = 0;
+  let weighted = 0;
+  let weight = 0;
+  for (const r of regions) {
+    const m = r.metrics;
+    if (!m) continue;
+    if (m.maxDeltaE > maxDeltaE) maxDeltaE = m.maxDeltaE;
+    weighted += m.meanDeltaE * r.pixels;
+    weight += r.pixels;
+  }
+  return { maxDeltaE, meanDeltaE: weight > 0 ? weighted / weight : 0 };
+}
+
 /** PSNR 是无穷大时不要显示成 "Infinity dB" */
 export function formatPsnr(psnr) {
   if (!Number.isFinite(psnr)) return '∞ dB';

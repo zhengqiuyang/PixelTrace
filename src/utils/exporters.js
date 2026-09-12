@@ -1,13 +1,15 @@
 /**
  * 导出实现 (PRODUCT.md §10.1 / §10.2)
  *
- * 四类导出物：
+ * 五类导出物：
  *   view   —— 当前视图截图（复用 exportView.composeCurrentView 的所见即所得合成）
  *   full   —— 全分辨率差异图：按原图尺寸渲染，不受视口与缩放影响
- *   report —— 差异图 + 元数据 JSON（两个文件）
+ *   report —— 差异图 + 元数据 JSON（两个文件，给程序归档）
+ *   html   —— 自包含单文件 HTML 报告（给人看 / 转发 / 打印）
  *   csv    —— 变更区域列表
  *
- * 前三类共享同一套「格式 / 质量 / 区域标记 / 水印」选项（§10.2）。
+ * 图片类导出物共享同一套「格式 / 质量 / 区域标记 / 水印」选项（§10.2）；
+ * html 与 csv 是文本产物，格式与质量对它们无意义，面板会整块隐藏。
  *
  * 底部 runExport() 是唯一的对外入口 —— 组件只负责收集选项，
  * 具体「用哪个函数、生成什么文件名、几个文件」全部收口在这里。
@@ -15,6 +17,11 @@
 
 import { composeCurrentView } from './exportView.js';
 import { hexToRgb } from './imageDiff.js';
+import { buildPairReportHtml, buildPairReportFilename } from './pairReport.js';
+
+/** 报告里嵌入图的长边上限。超出就等比缩小 —— 报告要能转发，
+ *  把 4096² 的原图原样内联进去会得到一份几十 MB 的 HTML。 */
+const REPORT_IMAGE_MAX_DIM = 1200;
 
 // ─── 导出内容 (§10.1) ───────────────────────────────────
 
@@ -22,6 +29,7 @@ export const EXPORT_KINDS = Object.freeze([
   { key: 'view', label: '当前视图', hint: '所见即所得的视口截图' },
   { key: 'full', label: '全分辨率差异图', hint: '按原图尺寸渲染的差异高亮图' },
   { key: 'report', label: '差异报告', hint: '差异图 PNG + 元数据 JSON，共两个文件' },
+  { key: 'html', label: 'HTML 报告', hint: '自包含单文件，含原图与差异图，可直接转发或打印' },
   { key: 'csv', label: '变更列表 CSV', hint: '所有变更区域的坐标与面积' },
 ]);
 
@@ -291,25 +299,55 @@ const KIND_SUFFIX = {
   view: '',
   full: 'diff',
   report: 'report',
+  html: 'report',
   csv: 'regions',
 };
 
-/** 会产出图片的导出物 —— 只有它们才受「格式 / 质量 / 水印」影响 */
+/** 会产出图片的导出物 —— 只有它们才受「格式 / 质量 / 水印」影响。
+ *  html 里虽然也有图，但那是内联预览，格式/质量由报告自己决定。 */
 export function kindProducesImage(kind) {
   return kind === 'view' || kind === 'full' || kind === 'report';
 }
 
-/** 会画区域框的导出物 —— 「当前视图」是所见即所得，框已经画在屏幕上了，不重复叠加 */
+/** 会画区域框的导出物。
+ *  「当前视图」是所见即所得，框已经画在屏幕上了，不重复叠加；
+ *  html 报告里的差异图要画框，否则读者不知道哪几块被判成了变更区域。 */
 export function kindSupportsMarkers(kind) {
-  return kind === 'full' || kind === 'report';
+  return kind === 'full' || kind === 'report' || kind === 'html';
 }
 
 /** 需要 mask / 原图才能渲染的导出物 */
 function needsMask(kind) {
-  return kind === 'full' || kind === 'report';
+  return kind === 'full' || kind === 'report' || kind === 'html';
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Image / Canvas → 等比缩到长边 ≤ maxDim 后的 data URL。
+ *
+ * 报告要能转发，把 4096² 的图原样内联进去会得到几十 MB 的 HTML；
+ * 缩小时显式指定 imageSmoothingQuality='high'，否则区域框那种 1px 细线
+ * 会在默认的 low 采样下闪断，报告上看着像区域被切碎了。
+ */
+function scaledDataUrl(source, maxDim, mime, quality) {
+  const w = source.naturalWidth || source.width;
+  const h = source.naturalHeight || source.height;
+  if (!w || !h) return null;
+
+  const scale = Math.min(1, maxDim / Math.max(w, h));
+  const tw = Math.max(1, Math.round(w * scale));
+  const th = Math.max(1, Math.round(h * scale));
+
+  const out = document.createElement('canvas');
+  out.width = tw;
+  out.height = th;
+  const ctx = out.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(source, 0, 0, tw, th);
+  return out.toDataURL(mime, quality);
+}
 
 /**
  * 执行一次导出。
@@ -319,13 +357,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * @param {object} payload.settings
  * @param {number} payload.width  mask 的宽（= 差异计算的宽，不一定等于原图宽）
  * @param {number} payload.height
- * @param {CanvasImageSource} payload.baseImage
+ * @param {CanvasImageSource} payload.baseImage 原始图（差异底图）
+ * @param {CanvasImageSource} [payload.overlayImage] 修改后图，HTML 报告要嵌它
  * @param {Uint8Array|null} payload.mask
  * @param {Array} payload.regions
  * @param {object|null} payload.stats
  * @param {{a?:string,b?:string}} [payload.imageNames]
+ * @param {{a?:object,b?:object}} [payload.imageMeta] 两张图的文件名/尺寸/体积/格式
  * @param {object} options
- * @param {'view'|'full'|'report'|'csv'} options.kind
+ * @param {'view'|'full'|'report'|'html'|'csv'} options.kind
  * @param {'png'|'jpeg'|'webp'} [options.format]
  * @param {number} [options.quality] 1..100，仅 lossy 格式有效
  * @param {boolean} [options.watermark]
@@ -344,7 +384,10 @@ export async function runExport(payload, options = {}) {
   } = options;
 
   const p = payload ?? {};
-  const { view, settings, regions = [], stats, mask, width, height, baseImage, imageNames } = p;
+  const {
+    view, settings, regions = [], stats, mask, width, height,
+    baseImage, overlayImage, imageNames, imageMeta,
+  } = p;
 
   if (!view) return { ok: false, error: '当前视图暂无可导出的内容' };
 
@@ -355,6 +398,54 @@ export async function runExport(payload, options = {}) {
     if (!regions.length) return { ok: false, error: '没有变更区域可导出' };
     const name = buildExportName(view, suffix, 'csv');
     downloadText(buildRegionsCsv(regions, stats), name, 'text/csv;charset=utf-8');
+    return { ok: true, files: [name] };
+  }
+
+  // ── HTML 报告：自包含单文件，内含三联预览图 ──
+  // 与「差异报告」的分工：那个产出 PNG + JSON，给程序归档追溯；
+  // 这个产出单个 .html，给人看、转发、打印。
+  if (kind === 'html') {
+    if (!mask || !width || !height) {
+      return { ok: false, error: '差异数据尚未就绪，请稍候再试' };
+    }
+    if (!baseImage) return { ok: false, error: '原始图片尚未就绪，请稍候再试' };
+
+    const diffCanvas = renderDiffComposite({
+      baseImage,
+      mask,
+      width,
+      height,
+      regions,
+      highlightColor: settings?.highlightColor,
+      grayscale: true,
+      withMarkers,
+      withRegionNumbers: withMarkers && withRegionNumbers,
+    });
+    if (!diffCanvas) return { ok: false, error: '差异图渲染失败，请重试' };
+
+    // 两张原图只是「上下文」，用 JPEG 换体积；
+    // 差异图要看框和编号，用 PNG 保清晰
+    const images = {
+      a: scaledDataUrl(baseImage, REPORT_IMAGE_MAX_DIM, 'image/jpeg', 0.85),
+      b: overlayImage
+        ? scaledDataUrl(overlayImage, REPORT_IMAGE_MAX_DIM, 'image/jpeg', 0.85)
+        : null,
+      diff: scaledDataUrl(diffCanvas, REPORT_IMAGE_MAX_DIM, 'image/png'),
+    };
+
+    const html = buildPairReportHtml({
+      view,
+      settings,
+      width,
+      height,
+      regions,
+      stats,
+      imageMeta,
+      images,
+      imageMaxDim: REPORT_IMAGE_MAX_DIM,
+    });
+    const name = buildPairReportFilename(imageMeta?.a?.fileName);
+    downloadText(html, name, 'text/html;charset=utf-8');
     return { ok: true, files: [name] };
   }
 

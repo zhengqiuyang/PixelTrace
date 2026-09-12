@@ -173,12 +173,19 @@ export default function ComparisonView({ img1, img2, stageRef: externalStageRef,
       width: diffImageData?.width ?? imgW,
       height: diffImageData?.height ?? imgH,
       baseImage: effectiveA,
+      // HTML 报告要嵌「修改后」这张，导出时才读
+      overlayImage: effectiveB,
       mask,
       regions,
       stats,
       imageNames: {
         a: imageMeta?.left?.fileName,
         b: imageMeta?.right?.fileName,
+      },
+      // 报告里的文件信息（尺寸/体积/格式）读这一份，不再从 imageNames 拼
+      imageMeta: {
+        a: imageMeta?.left ?? null,
+        b: imageMeta?.right ?? null,
       },
     };
   });

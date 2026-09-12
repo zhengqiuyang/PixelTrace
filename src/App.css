@@ -1858,6 +1858,17 @@ body::before {
   color: var(--text-dim);
 }
 
+/* 说明文案里提到的文件扩展名 —— 用等宽 + 强调色，让它从句子中浮出来 */
+.export-note code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  color: var(--accent);
+}
+
 @media (max-width: 520px) {
   .export-options { grid-template-columns: 1fr; }
   .export-slider input[type='range'] { width: 110px; }

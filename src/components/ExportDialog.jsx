@@ -18,6 +18,8 @@ import {
  *
  * 选项之间是有依赖的，面板按依赖动态显隐，不摆无效控件：
  *   · CSV       —— 纯文本，格式 / 质量 / 水印 / 区域标记全部无关，整块隐藏
+ *   · HTML 报告 —— 自包含单文件，格式 / 质量对它无意义（内嵌图由报告自己决定），
+ *                  只保留「区域边框 / 编号」两个开关
  *   · 当前视图  —— 所见即所得，屏幕上已经画好了框，区域标记无意义，隐藏
  *   · 仅 PNG    —— 无损，质量滑块隐藏（PNG 忽略该参数）
  *   · 差异报告  —— 固定 PNG + JSON，格式选择锁死并置灰
@@ -103,6 +105,7 @@ function ExportPanel({ exportRef, onClose }) {
   const set = (patch) => setOpts((prev) => ({ ...prev, ...patch }));
 
   const isCsv = opts.kind === 'csv';
+  const isHtml = opts.kind === 'html';
   const formatLocked = opts.kind === 'report';
   const producesImage = kindProducesImage(opts.kind);
   const supportsMarkers = kindSupportsMarkers(opts.kind);
@@ -162,6 +165,34 @@ function ExportPanel({ exportRef, onClose }) {
             导出全部变更区域的编号、坐标、尺寸与占比，含统计汇总行。
             文件带 BOM，Excel 直接打开中文表头不乱码。
           </p>
+        ) : isHtml ? (
+          <section className="export-section">
+            <h4 className="export-section-title">报告内容</h4>
+            <p className="export-note">
+              一个自包含的 <code>.html</code> 文件：三联图（原始 / 修改后 / 差异）、
+              结论与质量指标、检测参数快照、逐区域明细。
+              图片全部内联，无外部依赖 —— 可以直接转发、断网打开、打印成 PDF。
+            </p>
+            {supportsMarkers && (
+              <>
+                <Row label="绘制区域边框" hint="在报告的差异图上标出变更区域">
+                  <Toggle
+                    checked={opts.withMarkers}
+                    onChange={(v) => set({ withMarkers: v })}
+                    ariaLabel="绘制区域边框"
+                  />
+                </Row>
+                <Row label="显示区域编号">
+                  <Toggle
+                    checked={opts.withRegionNumbers}
+                    disabled={!markersOn}
+                    onChange={(v) => set({ withRegionNumbers: v })}
+                    ariaLabel="显示区域编号"
+                  />
+                </Row>
+              </>
+            )}
+          </section>
         ) : (
           <section className="export-section">
             <h4 className="export-section-title">图片选项</h4>
