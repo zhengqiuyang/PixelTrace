@@ -3,6 +3,10 @@ import { VIEW_TYPES, DEFAULT_SETTINGS } from '../utils/constants.js';
 
 const initialState = {
   images: { left: null, right: null },
+  // 上传时的文件元信息（文件名/尺寸/大小/格式）。
+  // 单独一份而不是塞进 images，是因为 images 存的是 Image 元素本身，
+  // 元信息要跟着一起清空、一起被导出报告读取。
+  imageMeta: { left: null, right: null },
   view: VIEW_TYPES.SLIDER,
   settings: { ...DEFAULT_SETTINGS },
   diffResult: null,
@@ -17,12 +21,14 @@ function reducer(state, action) {
       return {
         ...state,
         images: { ...state.images, [action.side]: action.image },
+        imageMeta: { ...state.imageMeta, [action.side]: action.meta ?? null },
       };
 
     case 'CLEAR_IMAGES':
       return {
         ...state,
         images: { left: null, right: null },
+        imageMeta: { left: null, right: null },
         diffResult: null,
         selectedRegion: null,
       };
@@ -73,7 +79,7 @@ export function AppProvider({ children }) {
 
   const value = useMemo(() => {
     const dispatchers = {
-      setImage: (side, image) => dispatch({ type: 'SET_IMAGE', side, image }),
+      setImage: (side, image, meta) => dispatch({ type: 'SET_IMAGE', side, image, meta }),
       clearImages: () => dispatch({ type: 'CLEAR_IMAGES' }),
       setView: (view) => dispatch({ type: 'SET_VIEW', view }),
       updateSettings: (patch) => dispatch({ type: 'UPDATE_SETTINGS', patch }),

@@ -15,6 +15,9 @@
  *
  * 已知取舍：分割线、标签、缩放百分比等 DOM 叠层不是 canvas，不会被包含。
  *
+ * 本模块只负责「合成视图」。文件名、格式、质量、水印、下载触发统一在
+ * exporters.js —— 那里是导出的唯一入口，不要再在这里加第二套命名或下载逻辑。
+ *
  * @returns {HTMLCanvasElement|null} 合成后的画布；无可导出内容时返回 null
  */
 
@@ -105,25 +108,4 @@ export function composeCurrentView(target = '.view-canvas-wrapper') {
   }
 
   return out;
-}
-
-/** 生成 §10.1 规定的导出文件名：pixeltrace_{view}_{timestamp}.png（本地时间） */
-export function buildExportFilename(view, ext = 'png') {
-  const d = new Date();
-  const p = (n) => String(n).padStart(2, '0');
-  const ts = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`
-    + `-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-  return `pixeltrace_${view}_${ts}.${ext}`;
-}
-
-/** 触发浏览器下载 */
-export function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

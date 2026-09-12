@@ -1430,6 +1430,9 @@ body::before {
 
 /* Native <dialog> reset */
 .pixel-dialog {
+  /* 必须显式写 margin:auto —— 顶部那条 * { margin: 0 } 会覆盖 UA 给
+     <dialog> 的居中边距，导致弹窗贴到左上角而不是居中 */
+  margin: auto;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -1692,6 +1695,172 @@ body::before {
 .settings-swatch.active {
   border-color: var(--text);
   transform: translateY(-1px);
+}
+
+/* ═══════════════════════════════════
+   EXPORT DIALOG (§10.1 / §10.2)
+   ═══════════════════════════════════ */
+.export-dialog {
+  max-width: 520px;
+  width: 92%;
+}
+
+.export-body {
+  max-height: min(66vh, 560px);
+  overflow-y: auto;
+  padding: 6px 18px 4px;
+}
+
+.export-section {
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.export-section:last-child { border-bottom: none; }
+
+.export-section-title {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+/* 导出内容：两列卡片，每张带一句说明。
+   做成卡片而不是下拉，是因为四项的差别（尤其是「报告＝两个文件」）
+   只看名字看不出来，需要一句话解释。 */
+.export-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.export-option {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 11px;
+  text-align: left;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.export-option:hover {
+  border-color: var(--border-light);
+  background: var(--bg-hover);
+}
+
+.export-option.active {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.export-option-label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.export-option.active .export-option-label { color: var(--accent); }
+
+.export-option-hint {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+/* 一行选项：左标签右控件，与设置面板同构 */
+.export-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+}
+
+.export-row-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.export-row-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.export-segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.export-segment {
+  padding: 5px 12px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-dim);
+  background: var(--bg-card);
+  border: none;
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.export-segment:last-child { border-right: none; }
+
+.export-segment:hover { color: var(--text); background: var(--bg-hover); }
+
+.export-segment.active {
+  color: var(--bg-dark);
+  background: var(--accent);
+}
+
+/* 报告固定 PNG+JSON：格式选择仍然显示（让用户知道产物是什么），但不可改 */
+.export-locked {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.export-slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.export-slider input[type='range'] {
+  width: 150px;
+  accent-color: var(--accent);
+}
+
+.export-slider-value {
+  min-width: 40px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  text-align: right;
+}
+
+.export-note {
+  margin: 14px 0 4px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-dim);
+}
+
+@media (max-width: 520px) {
+  .export-options { grid-template-columns: 1fr; }
+  .export-slider input[type='range'] { width: 110px; }
 }
 
 /* ═══════════════════════════════════

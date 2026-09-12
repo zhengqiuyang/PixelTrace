@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useToast } from '../hooks/useToast.js';
 import { ZOOM_LEVELS } from '../utils/constants.js';
-import { composeCurrentView, buildExportFilename, downloadBlob } from '../utils/exportView.js';
+import { composeCurrentView } from '../utils/exportView.js';
+import { runExport } from '../utils/exporters.js';
 
 /**
  * 完整快捷键表 (PRD §11.1)
@@ -20,40 +21,36 @@ import { composeCurrentView, buildExportFilename, downloadBlob } from '../utils/
  * Ctrl+0  重置为 100%
  * Home 适应窗口
  * ──── 操作 ────
- * E    导出 PNG
+ * E / Ctrl+E       快速导出当前视图 PNG
+ * Ctrl+Shift+E     打开导出面板（可选格式/质量/水印/区域标记）
  * F    全屏切换
+ * Ctrl+C 复制当前视图到剪贴板
  * Space 拖拽平移 (hold)
  * ──── 其他 ────
  * ?    显示快捷键帮助
  * Escape 关闭弹窗/退出全屏
  */
-export default function Toolbar({ stageRef, onOpenSettings, onOpenHelp }) {
+export default function Toolbar({ stageRef, exportRef, onOpenSettings, onOpenExport, onOpenHelp }) {
   const { state, setView, clearImages } = useAppContext();
-  const { view, zoom } = state;
+  const { zoom } = state;
   const { success: toastSuccess, error: toastError } = useToast();
   const [exporting, setExporting] = useState(false);
 
-  const handleExport = useCallback(() => {
+  /** 快速导出：当前视图 → PNG，不弹面板。Ctrl+E 与单按 E 走这条 */
+  const handleExport = useCallback(async () => {
     if (exporting) return;
-
-    // 按当前视图的真实变换合成所有画布，而非只取第一个 canvas
-    const canvas = composeCurrentView();
-    if (!canvas) {
-      toastError('当前视图暂无可导出的内容');
-      return;
-    }
-
     setExporting(true);
-    canvas.toBlob((blob) => {
-      setExporting(false);
-      if (!blob) {
-        toastError('导出失败，请重试');
+    try {
+      const result = await runExport(exportRef?.current, { kind: 'view', format: 'png' });
+      if (!result.ok) {
+        toastError(result.error ?? '导出失败，请重试');
         return;
       }
-      downloadBlob(blob, buildExportFilename(view));
       toastSuccess('已导出当前视图');
-    }, 'image/png');
-  }, [exporting, view, toastSuccess, toastError]);
+    } finally {
+      setExporting(false);
+    }
+  }, [exporting, exportRef, toastSuccess, toastError]);
 
   /** 复制当前视图到剪贴板 (§10.3) —— 粘贴进飞书/钉钉/微信即可分享 */
   const handleCopy = useCallback(async () => {
@@ -126,6 +123,8 @@ export default function Toolbar({ stageRef, onOpenSettings, onOpenHelp }) {
 
         // 操作（PRD §11.1 定义 Ctrl+E / Ctrl+S，单按 E 保留为便捷方式）
         case 'e': case 'E':
+          // Ctrl+Shift+E 归 App 管（打开导出面板），这里让路
+          if (e.shiftKey) break;
           e.preventDefault();
           handleExport();
           break;
@@ -244,11 +243,10 @@ export default function Toolbar({ stageRef, onOpenSettings, onOpenHelp }) {
 
       <button
         className="pixel-btn accent"
-        onClick={handleExport}
-        disabled={exporting}
-        aria-label="导出当前视图为 PNG"
+        onClick={() => onOpenExport?.()}
+        aria-label="打开导出面板"
       >
-        {exporting ? '导出中...' : '导出 PNG ↓'}
+        导出 ↓
       </button>
     </div>
   );

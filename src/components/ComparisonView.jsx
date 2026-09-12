@@ -52,9 +52,9 @@ const DISPLAY_MODES = [
   { key: 'diff-only', label: '差异' },
 ];
 
-export default function ComparisonView({ img1, img2, stageRef: externalStageRef, settingsOpen = false, onCloseSettings }) {
+export default function ComparisonView({ img1, img2, stageRef: externalStageRef, exportRef, settingsOpen = false, onCloseSettings }) {
   const { state, setView, setSelectedRegion, updateSettings, setAppZoom } = useAppContext();
-  const { view, settings, selectedRegion, zoom } = state;
+  const { view, settings, selectedRegion, zoom, imageMeta } = state;
   const containerRef = useRef(null);
   const internalStageRef = useRef(null);
   const stageRef = externalStageRef || internalStageRef;
@@ -158,6 +158,30 @@ export default function ComparisonView({ img1, img2, stageRef: externalStageRef,
 
   // useImageDiff 用 settings.threshold（滑块直接改 settings）
   const { diffImageData, mask, regions, stats, computing, progress } = useImageDiff(effectiveA, effectiveB, settings);
+
+  // ─── 导出数据快照 ───
+  // 导出按钮在 Toolbar（兄弟节点），而 mask / regions / stats 在这里，
+  // 用 ref 中转。依赖数组留空 = 每次渲染后刷新一遍，保证导出读到的是最新结果。
+  //
+  // width/height 取 mask 的尺寸而不是 imgW/imgH：两图尺寸不同且未对齐时，
+  // 差异是在 min(w)×min(h) 上算出来的，用原图尺寸会导致 mask 与画布错位。
+  useEffect(() => {
+    if (!exportRef) return;
+    exportRef.current = {
+      view,
+      settings,
+      width: diffImageData?.width ?? imgW,
+      height: diffImageData?.height ?? imgH,
+      baseImage: effectiveA,
+      mask,
+      regions,
+      stats,
+      imageNames: {
+        a: imageMeta?.left?.fileName,
+        b: imageMeta?.right?.fileName,
+      },
+    };
+  });
 
   const handleSelectRegion = useCallback((regionId) => {
     setSelectedRegion(regionId);

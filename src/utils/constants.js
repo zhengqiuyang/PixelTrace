@@ -216,6 +216,20 @@ export const DEFAULT_SETTINGS = Object.freeze({
   renderScale: 1, // 1 | 0.5 | 0.25
 });
 
+// ─── 导出选项默认值 (§10.2) ─────────────────────────────
+
+export const EXPORT_DEFAULTS = Object.freeze({
+  kind: 'view',
+  format: 'png',
+  quality: 92,
+  watermark: false,
+  withMarkers: true,
+  withRegionNumbers: true,
+});
+
+export const EXPORT_QUALITY_MIN = 10;
+export const EXPORT_QUALITY_MAX = 100;
+
 // ─── 闪烁视图 (§7.4) ────────────────────────────────────
 
 export const BLINK_SPEED_MIN = 100; // ms

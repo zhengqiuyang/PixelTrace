@@ -8,7 +8,12 @@
  *   csv    —— 变更区域列表
  *
  * 前三类共享同一套「格式 / 质量 / 区域标记 / 水印」选项（§10.2）。
+ *
+ * 底部 runExport() 是唯一的对外入口 —— 组件只负责收集选项，
+ * 具体「用哪个函数、生成什么文件名、几个文件」全部收口在这里。
  */
+
+import { composeCurrentView } from './exportView.js';
 
 // ─── 导出内容 (§10.1) ───────────────────────────────────
 
@@ -269,6 +274,12 @@ export function canvasToBlob(canvas, mime, qualityPercent) {
 
 export function downloadText(text, filename, mime = 'text/plain;charset=utf-8') {
   const blob = new Blob([text], { type: mime });
+  downloadBlob(blob, filename);
+}
+
+/** 触发浏览器下载（Blob 版） */
+export function downloadBlob(blob, filename) {
+  if (!blob) return;
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -277,4 +288,134 @@ export function downloadText(text, filename, mime = 'text/plain;charset=utf-8') 
   link.click();
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ─── 编排入口 (§10.1 / §10.2) ───────────────────────────
+
+/** 各导出物在文件名里的后缀段 */
+const KIND_SUFFIX = {
+  view: '',
+  full: 'diff',
+  report: 'report',
+  csv: 'regions',
+};
+
+/** 会产出图片的导出物 —— 只有它们才受「格式 / 质量 / 水印」影响 */
+export function kindProducesImage(kind) {
+  return kind === 'view' || kind === 'full' || kind === 'report';
+}
+
+/** 会画区域框的导出物 —— 「当前视图」是所见即所得，框已经画在屏幕上了，不重复叠加 */
+export function kindSupportsMarkers(kind) {
+  return kind === 'full' || kind === 'report';
+}
+
+/** 需要 mask / 原图才能渲染的导出物 */
+function needsMask(kind) {
+  return kind === 'full' || kind === 'report';
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * 执行一次导出。
+ *
+ * @param {object} payload 来自 ComparisonView 的当前状态快照
+ * @param {string} payload.view
+ * @param {object} payload.settings
+ * @param {number} payload.width  mask 的宽（= 差异计算的宽，不一定等于原图宽）
+ * @param {number} payload.height
+ * @param {CanvasImageSource} payload.baseImage
+ * @param {Uint8Array|null} payload.mask
+ * @param {Array} payload.regions
+ * @param {object|null} payload.stats
+ * @param {{a?:string,b?:string}} [payload.imageNames]
+ * @param {object} options
+ * @param {'view'|'full'|'report'|'csv'} options.kind
+ * @param {'png'|'jpeg'|'webp'} [options.format]
+ * @param {number} [options.quality] 1..100，仅 lossy 格式有效
+ * @param {boolean} [options.watermark]
+ * @param {boolean} [options.withMarkers]
+ * @param {boolean} [options.withRegionNumbers]
+ * @returns {Promise<{ok:boolean, error?:string, files?:string[]}>}
+ */
+export async function runExport(payload, options = {}) {
+  const {
+    kind = 'view',
+    format = 'png',
+    quality = 92,
+    watermark = false,
+    withMarkers = true,
+    withRegionNumbers = true,
+  } = options;
+
+  const p = payload ?? {};
+  const { view, settings, regions = [], stats, mask, width, height, baseImage, imageNames } = p;
+
+  if (!view) return { ok: false, error: '当前视图暂无可导出的内容' };
+
+  const suffix = KIND_SUFFIX[kind] ?? kind;
+
+  // ── CSV：纯文本，与格式/质量/水印无关 ──
+  if (kind === 'csv') {
+    if (!regions.length) return { ok: false, error: '没有变更区域可导出' };
+    const name = buildExportName(view, suffix, 'csv');
+    downloadText(buildRegionsCsv(regions, stats), name, 'text/csv;charset=utf-8');
+    return { ok: true, files: [name] };
+  }
+
+  const fmt = getFormat(format);
+
+  // ── 取画布：当前视图走 DOM 合成，其余走按原图尺寸重绘 ──
+  let canvas;
+  if (kind === 'view') {
+    canvas = composeCurrentView();
+  } else if (needsMask(kind)) {
+    if (!mask || !width || !height) {
+      return { ok: false, error: '差异数据尚未就绪，请稍候再试' };
+    }
+    canvas = renderDiffComposite({
+      baseImage,
+      mask,
+      width,
+      height,
+      regions,
+      highlightColor: settings?.highlightColor,
+      grayscale: true,
+      withMarkers,
+      withRegionNumbers: withMarkers && withRegionNumbers,
+    });
+  }
+
+  if (!canvas) return { ok: false, error: '当前视图暂无可导出的内容' };
+
+  if (watermark) {
+    drawWatermark(canvas.getContext('2d'), canvas.width, canvas.height);
+  }
+
+  const imageName = buildExportName(view, suffix, fmt.key);
+  const blob = await canvasToBlob(canvas, fmt.mime, fmt.lossy ? quality : undefined);
+  if (!blob) return { ok: false, error: '导出失败，请重试' };
+  downloadBlob(blob, imageName);
+
+  // ── 差异报告：再补一个元数据 JSON，共两个文件 ──
+  if (kind === 'report') {
+    // 连续两次 a.click() 会触发浏览器的「多文件下载」许可提示，
+    // 这里稍作间隔，避免第二个文件被直接吞掉
+    await sleep(250);
+    const jsonName = buildExportName(view, suffix, 'json');
+    const report = buildDiffReport({
+      view,
+      width,
+      height,
+      settings,
+      stats,
+      regions,
+      imageNames,
+    });
+    downloadText(JSON.stringify(report, null, 2), jsonName, 'application/json;charset=utf-8');
+    return { ok: true, files: [imageName, jsonName] };
+  }
+
+  return { ok: true, files: [imageName] };
 }
