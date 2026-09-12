@@ -4,6 +4,7 @@ import { useAppContext } from './hooks/useAppContext.js';
 import { useToast } from './hooks/useToast.js';
 import { ToastProvider } from './components/Toast.jsx';
 import { loadImageFromFile } from './utils/imageLoader.js';
+import { applyTheme, storeTheme, themeMeta, nextTheme } from './utils/theme.js';
 import ImageUploader from './components/ImageUploader';
 import ComparisonView from './components/ComparisonView';
 import Toolbar from './components/Toolbar';
@@ -19,14 +20,26 @@ const MODES = [
 ];
 
 function AppContent() {
-  const { state, setImage } = useAppContext();
-  const { images } = state;
+  const { state, setImage, toggleTheme } = useAppContext();
+  const { images, theme } = state;
   const hasBoth = images.left && images.right;
   const stageRef = useRef(null);
   // 弹窗开合放在这里，工具栏的「设置」按钮与 ComparisonView 里的面板要共用同一份状态
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+
+  // 把主题同步到 <html> 上，并记住用户的选择。
+  // 首帧不靠这里 —— index.html 里的内联脚本已经在解析阶段设好了，
+  // 否则亮色用户每次刷新都要先闪一帧暗色。这里只负责「切换之后」。
+  // 写 DOM / 写 localStorage 都属于「与外部系统同步」，放在 effect 里是正当用法。
+  useEffect(() => {
+    applyTheme(theme);
+    storeTheme(theme);
+  }, [theme]);
+
+  const themeInfo = themeMeta(theme);
+  const nextThemeInfo = themeMeta(nextTheme(theme));
 
   // 模式是 App 级状态而不是路由：两条链路共用同一份 images / settings，
   // 从批量结果点进单对时不需要重新选图，来回切也只是换一棵子树。
@@ -134,6 +147,19 @@ function AppContent() {
             <span className="logo-trace">TRACE</span>
           </div>
           <span className="header-version">v1.0</span>
+
+          {/* 主题开关放在顶栏最右侧：上传页和结果页都能碰到，
+              不像设置面板只在对比视图里才有 */}
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title={`当前${themeInfo.label}主题 —— 点击切换到${nextThemeInfo.label}`}
+            aria-label={`当前为${themeInfo.label}主题，点击切换到${nextThemeInfo.label}主题`}
+          >
+            <span className="theme-toggle-icon" aria-hidden="true">{themeInfo.icon}</span>
+            <span className="theme-toggle-label">{themeInfo.label}</span>
+          </button>
         </div>
       </header>
 

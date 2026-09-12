@@ -140,7 +140,7 @@ export default function SplitView({ img1, img2, width, height, onZoomPanChange, 
         position: 'absolute', left: '50%', top: 0,
         width: 2, height: '100%',
         background: 'var(--accent)',
-        boxShadow: '0 0 10px rgba(0, 255, 136, 0.3), 0 0 30px rgba(0, 255, 136, 0.1)',
+        boxShadow: '0 0 10px rgba(var(--accent-rgb), 0.3), 0 0 30px rgba(var(--accent-rgb), 0.1)',
         zIndex: 10,
         pointerEvents: 'none', transform: 'translateX(-1px)',
       }} />

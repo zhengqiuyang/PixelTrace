@@ -1,5 +1,17 @@
+/* ═══════════════════════════════════════════════════════════
+   主题 (PRODUCT.md §15.5)
+
+   :root 是暗色（默认），[data-theme='light'] 覆盖成亮色。
+   亮色块里只写「和暗色不同」的东西 —— 没列到的（舞台色、字体、
+   布局、动画、动效）一律继承 :root，这正是舞台在亮色下仍然保持暗的机制。
+
+   半透明颜色一律用通道变量拼：rgba(var(--fg-rgb), 0.04)。
+   全项目有几十处这种叠加，逐个写两遍迟早漏；换主题时只改通道值，
+   几十处一起跟着变。
+   ═══════════════════════════════════════════════════════════ */
+
 :root {
-  /* ─── 配色方案 ─── */
+  /* ─── 配色方案（暗色） ─── */
   --bg-dark: #0a0a0f;
   --bg-card: #12121a;
   --bg-hover: #1a1a28;
@@ -7,16 +19,65 @@
 
   --accent: #00ff88;
   --accent-dim: #00cc6a;
+  --accent-bright: #33ffaa;
   --accent-glow: rgba(0, 255, 136, 0.15);
   --danger: #ff3366;
   --danger-dim: #cc2952;
   --danger-glow: rgba(255, 51, 102, 0.15);
+  --warn: #ffb020;
+  --info: #6ac8ff;
+  --alt: #00ccff;
 
   --text: #e0e0e8;
-  --text-dim: #6a6a7a;
+  /* 原值 #6a6a7a 在 stat 卡（#17171f）上只有 3.36:1，正文级别读不清。
+     提到 #828294 后最差的一面也有 4.73:1 —— 依旧明显比 --text 暗，
+     层级没变，只是从「看不清」变成「看得清但次要」。
+     这个值是算出来的，不是调出来的：见 scripts/test-theme.mjs 的对比度断言 */
+  --text-dim: #828294;
+  --on-accent: #0a0a0f; /* 压在 accent 实心底上的文字色 */
 
   --border: #2a2a3a;
   --border-light: rgba(255, 255, 255, 0.06);
+
+  /* ─── 状态色（批量结果、报告徽章同源） ─── */
+  --b-ok: #00ff88;
+  --b-warn: #ffb020;
+  --b-err: #ff3366;
+  --b-info: #6ac8ff;
+  --b-dim: #828294;
+
+  /* ─── 通道变量：所有半透明叠加的来源 ───
+     --fg-rgb 是「墨色」：暗色下叠白、亮色下叠黑。
+     同一个 rgba(var(--fg-rgb), 0.04) 在两种主题下都表达
+     「比底色亮一点/暗一点的表面」，语义不随主题翻转。 */
+  --fg-rgb: 255, 255, 255;
+  --shadow-rgb: 0, 0, 0;
+  --accent-rgb: 0, 255, 136;
+  --danger-rgb: 255, 51, 102;
+  --warn-rgb: 255, 176, 32;
+  --info-rgb: 106, 200, 255;
+  --alt-rgb: 0, 204, 255;
+  --surface-rgb: 10, 10, 15; /* 玻璃面板底 */
+  --card-rgb: 18, 18, 26; /* 卡片 / 浮层底 */
+
+  /* ─── 舞台：图片对照区与导出合成图共用的底色 ───
+     刻意用字面量、且不在亮色块里覆盖。图片必须在稳定的中性暗底上比较，
+     亮底会把浅色图洗掉、也会让霓虹色的区域框失去对比；
+     更关键的是「当前视图」导出会把这个底色烤进 PNG，
+     舞台上亮、导出图暗就等于破坏了所见即所得。 */
+  --stage-void: #000;
+  --stage-bg: #08080c;
+
+  /* 全局扫描线强度。亮色主题下要更淡，见 App.css 的 body::before */
+  --scanline-alpha: 0.012;
+
+  /* ─── 阴影与遮罩 ─── */
+  --scrim: rgba(0, 0, 0, 0.75);
+  --shadow-panel: 0 4px 20px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-panel-lg: 0 4px 24px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-pop: 0 8px 30px rgba(0, 0, 0, 0.5);
 
   /* ─── 特效 ─── */
   --glow-green: 0 0 20px rgba(0, 255, 136, 0.12);
@@ -25,7 +86,14 @@
 
   --glass-bg: rgba(10, 10, 15, 0.88);
   --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --glass-shadow: var(--shadow-panel-lg);
+
+  /* ─── 浮在舞台上的控件面板底色 ───
+     这类面板（滑块/淡化/闪烁/相减/高亮各自的控件条）是**压在黑色舞台上**的，
+     半透明底色会和舞台的纯黑混出中灰。暗色主题下无所谓（黑上加黑），
+     亮色主题下就会得到一块灰面板，上面的绿字对比度直接掉到 4.5 以下。
+     所以亮色主题里这个 token 接近不透明 —— 不是审美偏好，是算出来的。 */
+  --overlay-bg: rgba(10, 10, 15, 0.88);
 
   /* ─── 字体 ─── */
   /* Press Start 2P 与 JetBrains Mono 都只覆盖拉丁字符，中文字形必须显式挂回退栈，
@@ -59,6 +127,86 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* 让原生控件（range / select / 自动填充 / 滚动条）跟着主题走 */
+  color-scheme: dark;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   亮色主题
+   ═══════════════════════════════════════════════════════════ */
+
+[data-theme='light'] {
+  --bg-dark: #eef0f4;
+  --bg-card: #ffffff;
+  --bg-hover: #e3e6ed;
+  --bg-main: #f7f8fb;
+
+  /* 荧光绿在白底上根本读不出来，必须压暗；但它同时还要当实心按钮底色，
+     压到近黑又会让按钮发闷，所以取中间值。
+
+     --accent-bright 的语义是「hover 时更亮一点」——在亮色下「更亮」必须
+     反过来理解为「更深」，否则越 hover 越糊。它有两个落点：
+       · .upload-tip-link:hover 的文字
+       · .pixel-btn.accent:hover 的渐变顶色（底下压着 --on-accent 文字）
+     #00875a 两个都不到 4.5:1（3.99 / 3.99），所以取比 --accent 更深的 #00693f：
+     文字侧 5.95:1、按钮侧 6.79:1。见 scripts/test-theme.mjs 的断言。 */
+  --accent: #007346;
+  --accent-dim: #00603a;
+  --accent-bright: #00693f;
+  --accent-glow: rgba(0, 115, 70, 0.12);
+  --danger: #c81a46;
+  --danger-dim: #a81438;
+  --danger-glow: rgba(200, 26, 70, 0.12);
+  --warn: #96600a;
+  --info: #0f6ea6;
+  --alt: #0d6598;
+
+  --text: #14141c;
+  --text-dim: #585866;
+  --on-accent: #ffffff;
+
+  --border: #d5d8e2;
+  --border-light: rgba(20, 20, 28, 0.06);
+
+  --b-ok: #007346;
+  --b-warn: #96600a;
+  --b-err: #c81a46;
+  --b-info: #0f6ea6;
+  --b-dim: #585866;
+
+  --fg-rgb: 20, 20, 28;
+  --shadow-rgb: 24, 26, 40;
+  --accent-rgb: 0, 115, 70;
+  --danger-rgb: 200, 26, 70;
+  --warn-rgb: 150, 96, 10;
+  --info-rgb: 15, 110, 166;
+  --alt-rgb: 13, 101, 152;
+  --surface-rgb: 255, 255, 255;
+  --card-rgb: 255, 255, 255;
+
+  /* 遮罩要轻：白底上盖一层 75% 黑会像断电，而且亮色主题下弹窗
+     本来就靠边框和阴影区分层次，不需要那么重的压暗 */
+  --scrim: rgba(24, 26, 40, 0.38);
+  --shadow-panel: 0 1px 2px rgba(24, 26, 40, 0.07),
+    0 4px 14px rgba(24, 26, 40, 0.09);
+  --shadow-panel-lg: 0 1px 2px rgba(24, 26, 40, 0.07),
+    0 10px 30px rgba(24, 26, 40, 0.12);
+  --shadow-pop: 0 10px 30px rgba(24, 26, 40, 0.16);
+
+  --glow-green: 0 0 20px rgba(0, 115, 70, 0.1);
+  --glow-red: 0 0 20px rgba(200, 26, 70, 0.1);
+  --glow-green-strong: 0 0 30px rgba(0, 115, 70, 0.16);
+
+  --scanline-alpha: 0.006;
+
+  --glass-bg: rgba(255, 255, 255, 0.86);
+  --glass-border: rgba(20, 20, 28, 0.08);
+  /* 97% 白：压在纯黑舞台上等效 rgb(247)，
+     上面的 accent 文字才够 4.5:1。降到 0.88 会掉到 4.0 左右 */
+  --overlay-bg: rgba(255, 255, 255, 0.97);
+
+  color-scheme: light;
 }
 
 * {
@@ -70,6 +218,13 @@
 html, body, #root {
   width: 100%;
   min-height: 100vh;
+}
+
+/* 主题切换时整页颜色一起过渡。
+   只过渡颜色类属性，不动 transform/opacity —— 那会把画布重绘也拖进来。
+   prefers-reduced-motion 的兜底在下面已经全局关掉了动画时长。 */
+html {
+  transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
 /* ─── 滚动条 ─── */
@@ -84,19 +239,19 @@ html, body, #root {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(var(--fg-rgb), 0.1);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 255, 136, 0.3);
+  background: rgba(var(--accent-rgb), 0.3);
 }
 
 /* ─── 选中 ─── */
 
 ::selection {
-  background: rgba(0, 255, 136, 0.25);
-  color: #fff;
+  background: rgba(var(--accent-rgb), 0.25);
+  color: var(--text);
 }
 
 /* ─── 焦点环 (无障碍) ─── */

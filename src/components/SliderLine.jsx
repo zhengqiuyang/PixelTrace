@@ -55,7 +55,7 @@ export default function SliderLine({ sliderPos, width, height }) {
         width: 2,
         height: pos.h,
         background: 'var(--accent)',
-        boxShadow: '0 0 8px rgba(0, 255, 136, 0.5)',
+        boxShadow: '0 0 8px rgba(var(--accent-rgb), 0.5)',
         zIndex: 15,
         pointerEvents: 'none',
       }}

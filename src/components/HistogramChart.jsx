@@ -1,4 +1,6 @@
 import { useRef, useEffect } from 'react';
+import { useAppContext } from '../hooks/useAppContext.js';
+import { readChannels, rgbaFromChannels } from '../utils/theme.js';
 
 /**
  * RGB 直方图对比 (§8.5)
@@ -27,6 +29,11 @@ const LABEL_WIDTH = 14;
 
 export default function HistogramChart({ histogram, width: widthProp }) {
   const canvasRef = useRef(null);
+  // 基线颜色要跟着主题走：白 7% 在暗底上是条淡线，在亮底上直接消失。
+  // canvas 里用不了 CSS 变量，只能把通道值读回来自己拼，
+  // 所以这里必须订阅主题 —— 主题一变就重绘。
+  const { state } = useAppContext();
+  const theme = state.theme;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -50,6 +57,8 @@ export default function HistogramChart({ histogram, width: widthProp }) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
+    const baseline = rgbaFromChannels(readChannels('--fg-rgb', canvas), 0.07);
+
     ROWS.forEach((row, i) => {
       const top = i * (ROW_HEIGHT + GAP);
       const baseY = top + ROW_HEIGHT;
@@ -65,7 +74,7 @@ export default function HistogramChart({ histogram, width: widthProp }) {
       if (peak === 0) return;
 
       // 基线
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
+      ctx.strokeStyle = baseline;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(LABEL_WIDTH, baseY + 0.5);
@@ -104,7 +113,8 @@ export default function HistogramChart({ histogram, width: widthProp }) {
       ctx.textBaseline = 'top';
       ctx.fillText(row.label, 0, top + 1);
     });
-  }, [histogram, widthProp]);
+    // theme 进依赖数组：主题切换后必须用新读到的基线色重绘一次
+  }, [histogram, widthProp, theme]);
 
   if (!histogram?.a || !histogram?.b) {
     return <p className="histogram-empty">暂无直方图数据</p>;

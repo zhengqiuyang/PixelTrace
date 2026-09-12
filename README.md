@@ -151,6 +151,25 @@ HTML 报告的第一屏就是结论（`一致` / `微差` / `有差异`），再
 > 换文件夹会清空上一轮结果——结果的键是 `相对路径A||相对路径B`，
 > 不清的话新旧文件夹里同名的那几张会撞上同一个键，表格里显示的就是上一次的数字。
 
+### 主题切换
+
+顶栏右侧可在**暗色**与**亮色**之间切换，偏好记在 `localStorage`，刷新不丢。
+
+- **默认暗色** —— 产品原本的形态
+- **首帧不闪** —— `data-theme` 写在 `<html>` 上，配一段内联脚本在样式表之前读回偏好，亮色用户刷新不会先闪一帧暗色
+- **比较区恒为暗底** —— 图片必须在稳定的中性暗底上比较（亮底会把浅色图洗掉、也会让霓虹色的区域框失去对比）。
+  更关键的是「当前视图」导出会把这个底色烤进 PNG，舞台上亮、导出图暗就等于破坏了所见即所得，
+  所以舞台底色两套主题共用、不随主题变
+- **配色是算出来的** —— 亮色下荧光绿在白底上根本读不出来，必须换成压暗的绿。
+  每个「文字色 × 底色」组合都按 WCAG AA（4.5:1）算过，断言在 `scripts/test-theme.mjs`
+
+> 半透明叠加一律用通道变量拼：`rgba(var(--fg-rgb), 0.04)`。`--fg-rgb` 是「墨色」——
+> 暗色下叠白、亮色下叠黑。语义（「比底色亮一点 / 暗一点的表面」）不随主题翻转，只有值翻转，
+> 所以全项目几十处叠加不用写两遍，也不会漏掉某一处。
+>
+> 另外亮色下「hover 变亮」要反过来理解成「更深」，否则越 hover 越糊。
+> 这条在真实浏览器里断言了（悬停前后各算一次对比度）。
+
 ### 其他
 
 - 支持 JPG / PNG / WebP / GIF（取首帧）/ BMP
@@ -197,11 +216,12 @@ npm run dev
 | `npm run build` | 构建生产版本到 `dist/` |
 | `npm run preview` | 本地预览构建产物 |
 | `npm run lint` | 静态检查（oxlint） |
-| `npm test` | 跑全部单元测试（差异算法 + 质量指标 + 导出 + 文件夹配对） |
+| `npm test` | 跑全部单元测试（差异算法 + 质量指标 + 导出 + 文件夹配对 + 主题配色） |
 | `npm run test-diff` | 差异算法的已知答案测试（纯函数，不需要浏览器） |
 | `npm run test-metrics` | 质量指标的已知答案测试（对照公开参考值） |
 | `npm run test-exporters` | 导出产物的结构测试（文件名 / CSV / 报告 JSON / 单图 HTML 报告） |
 | `npm run test-batch` | 文件夹配对的三轮规则、歧义与非图片排除测试 |
+| `npm run test-theme` | 主题切换逻辑与配色的 WCAG 对比度断言（直接解析 `index.css`，不需要浏览器） |
 | `npm run verify-dpr` | 打开渲染自检页，验证高分辨率渲染未退化 |
 | `npm run verify-export` | 打开导出合成自检页，验证多画布裁剪还原 |
 
@@ -225,7 +245,7 @@ src/
 ├── utils/        # imageDiff 核心算法、imageMetrics 质量指标、diffPipeline 计算序列、
 │                 #   batchPairing 配对、batchResults 归类、batchReport 批量报告、
 │                 #   pairReport 单图报告、reportShell 两份报告共用的外壳与样式、
-│                 #   exporters 导出、imageLoader、constants、canvasDPR
+│                 #   exporters 导出、imageLoader、constants、canvasDPR、theme 主题
 └── workers/      # diffWorker 单对差异计算、batchWorker 批量差异计算
 ```
 
@@ -252,6 +272,7 @@ src/
 - [x] 多格式导出（PNG / JPEG / WebP）与差异报告、变更列表 CSV、水印、区域标记
 - [x] 单图 HTML 差异报告（三联图 + 结论 + 指标 + 参数快照 + 区域明细，自包含可离线/打印）
 - [x] 文件夹批量对比（三轮配对 + 三档状态 + 自包含 HTML 报告 / CSV）
+- [x] 暗色 / 亮色主题切换（首帧不闪、比较区恒为暗底、配色按 WCAG AA 算过）
 - [ ] 版本序列对比（同一张图跨多个版本的时间线）
 - [ ] 渲染精度档位（1x / 0.5 / 0.25）
 

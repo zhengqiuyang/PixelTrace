@@ -1,5 +1,6 @@
 import { createContext, useReducer, useMemo } from 'react';
 import { VIEW_TYPES, DEFAULT_SETTINGS } from '../utils/constants.js';
+import { readStoredTheme, nextTheme } from '../utils/theme.js';
 
 const initialState = {
   images: { left: null, right: null },
@@ -13,6 +14,10 @@ const initialState = {
   selectedRegion: null,
   sidebarOpen: true,
   zoom: 1,
+  // 主题放在全局 store 而不是某个组件的局部 state：
+  // HistogramChart 这类画在 canvas 上的组件拿不到 CSS 变量，
+  // 必须知道主题变了才能用新颜色重绘。放 store 里它们订阅一下就行。
+  theme: readStoredTheme(),
 };
 
 function reducer(state, action) {
@@ -65,6 +70,12 @@ function reducer(state, action) {
       // 否则画布每次上报（含到达缩放上下限后的空转）都会刷新全部消费者
       return state.zoom === action.zoom ? state : { ...state, zoom: action.zoom };
 
+    case 'SET_THEME':
+      return state.theme === action.theme ? state : { ...state, theme: action.theme };
+
+    case 'TOGGLE_THEME':
+      return { ...state, theme: nextTheme(state.theme) };
+
     default:
       return state;
   }
@@ -90,6 +101,8 @@ export function AppProvider({ children }) {
       toggleSidebar: () => dispatch({ type: 'TOGGLE_SIDEBAR' }),
       setSidebar: (open) => dispatch({ type: 'SET_SIDEBAR', open }),
       setAppZoom: (zoom) => dispatch({ type: 'SET_ZOOM', zoom }),
+      setTheme: (theme) => dispatch({ type: 'SET_THEME', theme }),
+      toggleTheme: () => dispatch({ type: 'TOGGLE_THEME' }),
     };
 
     return { state, ...dispatchers };

@@ -1,5 +1,8 @@
 <!doctype html>
-<html lang="zh-CN">
+<!-- data-theme 的默认值直接写在标签上：即使下面那段内联脚本被策略拦掉，
+     页面也仍然是暗色，不会出现无主题的裸样式。
+     key 与 src/utils/theme.js 的 THEME_STORAGE_KEY 必须一致，改一处要改两处。 -->
+<html lang="zh-CN" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>█</text></svg>" />
@@ -9,6 +12,20 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
     <meta name="description" content="PixelTrace - 逐像素图像差异追踪器" />
     <title>PixelTrace — 像素差异追踪</title>
+    <script>
+      // 在 React 挂载之前把主题定下来，否则亮色用户每次刷新都会先闪一帧暗色。
+      // 必须内联、必须在样式表之前执行 —— 抽成模块就成了异步加载，白闪照样出现。
+      (function () {
+        try {
+          var t = localStorage.getItem('pixeltrace.theme');
+          if (t === 'light' || t === 'dark') {
+            document.documentElement.setAttribute('data-theme', t);
+          }
+        } catch (e) {
+          /* 隐私模式 / 策略禁用：保持标签上的默认值即可 */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
