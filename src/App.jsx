@@ -1,13 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppProvider } from './store/AppContext.jsx';
 import { useAppContext } from './hooks/useAppContext.js';
+import { useToast } from './hooks/useToast.js';
 import { ToastProvider } from './components/Toast.jsx';
+import { loadImageFromFile } from './utils/imageLoader.js';
 import ImageUploader from './components/ImageUploader';
 import ComparisonView from './components/ComparisonView';
 import Toolbar from './components/Toolbar';
 import ShortcutsDialog from './components/ShortcutsDialog';
 import ExportDialog from './components/ExportDialog';
+import BatchView from './components/BatchView';
 import './App.css';
+
+/** 两种工作模式：单对深看 / 文件夹批量扫描 */
+const MODES = [
+  { key: 'single', label: '单对对比', crumb: '图片对比' },
+  { key: 'batch', label: '文件夹批量', crumb: '批量对比' },
+];
 
 function AppContent() {
   const { state, setImage } = useAppContext();
@@ -18,6 +27,12 @@ function AppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+
+  // 模式是 App 级状态而不是路由：两条链路共用同一份 images / settings，
+  // 从批量结果点进单对时不需要重新选图，来回切也只是换一棵子树。
+  const [mode, setMode] = useState('single');
+  const [openingPair, setOpeningPair] = useState(false);
+  const { error: toastError } = useToast();
 
   // 导出所需的数据快照。ComparisonView 是这些数据的持有者（mask / regions / stats
   // 都在它的 useImageDiff 里），而触发导出的按钮在 Toolbar —— 两者是兄弟节点。
@@ -38,7 +53,7 @@ function AppContent() {
       // 直接写 e.key === 'e' 会漏掉这个组合键。
       if (e.key.toLowerCase() === 'e' && (e.ctrlKey || e.metaKey) && e.shiftKey) {
         // Ctrl+Shift+E 打开导出面板；单按 E / Ctrl+E 仍是快速导出 PNG（见 Toolbar）
-        if (hasBoth) {
+        if (hasBoth && mode === 'single') {
           e.preventDefault();
           setExportOpen(true);
         }
@@ -50,14 +65,44 @@ function AppContent() {
       if (e.key === '?') {
         e.preventDefault();
         setHelpOpen(true);
-      } else if (e.key === ',' && hasBoth) {
+      } else if (e.key === ',' && hasBoth && mode === 'single') {
         e.preventDefault();
         setSettingsOpen(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasBoth]);
+  }, [hasBoth, mode]);
+
+  /**
+   * 批量结果表 → 单对对比视图的接缝。
+   *
+   * 批量只回答「哪几张变了」，具体变在哪必须回到单对视图才看得见 ——
+   * 没有这条缝，批量就只能给结论、给不出证据。
+   *
+   * 两个文件并发解码：串行会让「点一下等两轮」的迟滞很明显，
+   * 而这里最多同时开两张，不存在内存压力。
+   */
+  const handleOpenPair = useCallback(async (row) => {
+    if (openingPair) return;
+    setOpeningPair(true);
+    try {
+      const [left, right] = await Promise.all([
+        loadImageFromFile(row.fileA),
+        loadImageFromFile(row.fileB),
+      ]);
+      setImage('left', left.img, left.meta);
+      setImage('right', right.img, right.meta);
+      setMode('single');
+    } catch (err) {
+      console.error('载入这一对失败:', err);
+      toastError('这一对图片无法载入，可能已损坏');
+    } finally {
+      setOpeningPair(false);
+    }
+  }, [openingPair, setImage, toastError]);
+
+  const currentCrumb = MODES.find((m) => m.key === mode)?.crumb ?? '';
 
   return (
     <div className="app">
@@ -66,8 +111,23 @@ function AppContent() {
           <nav className="breadcrumb" aria-label="面包屑导航">
             <span className="breadcrumb-item breadcrumb-app">PixelTrace</span>
             <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-item breadcrumb-current">图片对比</span>
+            <span className="breadcrumb-item breadcrumb-current">{currentCrumb}</span>
           </nav>
+
+          <div className="mode-switch" role="group" aria-label="切换对比模式">
+            {MODES.map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                className={`mode-btn ${mode === m.key ? 'active' : ''}`}
+                aria-pressed={mode === m.key}
+                onClick={() => setMode(m.key)}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
           <div className="header-logo">
             <span className="logo-pixel">█</span>
             <span className="logo-text">PIXEL</span>
@@ -77,45 +137,71 @@ function AppContent() {
         </div>
       </header>
 
-      {!hasBoth ? (
-        <div className="upload-section">
-          <div className="upload-grid">
-            <ImageUploader
-              label="原始图片"
-              side="left"
-              onImageLoad={(img, meta) => setImage('left', img, meta)}
-            />
-            <div className="upload-divider">
-              <div className="divider-line" />
-              <span className="divider-icon">VS</span>
-              <div className="divider-line" />
+      {/* 两块面板都常驻挂载，只切换可见性。
+          卸载重建的代价太大：从批量结果点进单对看细节，再切回批量时，
+          已经跑完的几十张结果、进度、选好的文件夹全没了，
+          用户得重新选一遍文件夹再跑一遍 —— 这个代价远大于多留一棵 DOM。
+          ComparisonView 同理：切走再切回不会重算差异。 */}
+      <div className="mode-panes">
+        <div className={`mode-pane ${mode === 'batch' ? '' : 'mode-pane--hidden'}`}>
+          <BatchView onExit={() => setMode('single')} onOpenPair={handleOpenPair} />
+        </div>
+
+        <div className={`mode-pane ${mode === 'single' ? '' : 'mode-pane--hidden'}`}>
+          {!hasBoth ? (
+            <div className="upload-section">
+              <div className="upload-grid">
+                <ImageUploader
+                  label="原始图片"
+                  side="left"
+                  onImageLoad={(img, meta) => setImage('left', img, meta)}
+                />
+                <div className="upload-divider">
+                  <div className="divider-line" />
+                  <span className="divider-icon">VS</span>
+                  <div className="divider-line" />
+                </div>
+                <ImageUploader
+                  label="修改后图片"
+                  side="right"
+                  onImageLoad={(img, meta) => setImage('right', img, meta)}
+                />
+              </div>
+              <p className="upload-tip">
+                上传两张图片以开始比较差异，或
+                <button
+                  type="button"
+                  className="upload-tip-link"
+                  onClick={() => setMode('batch')}
+                >
+                  对比两个文件夹
+                </button>
+              </p>
             </div>
-            <ImageUploader
-              label="修改后图片"
-              side="right"
-              onImageLoad={(img, meta) => setImage('right', img, meta)}
-            />
-          </div>
-          <p className="upload-tip">上传两张图片以开始比较差异</p>
+          ) : (
+            <div className="result-section">
+              <Toolbar
+                stageRef={stageRef}
+                exportRef={exportRef}
+                onOpenSettings={() => setSettingsOpen(true)}
+                onOpenExport={() => setExportOpen(true)}
+                onOpenHelp={() => setHelpOpen(true)}
+              />
+              <ComparisonView
+                img1={images.left}
+                img2={images.right}
+                stageRef={stageRef}
+                exportRef={exportRef}
+                settingsOpen={settingsOpen}
+                onCloseSettings={() => setSettingsOpen(false)}
+              />
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="result-section">
-          <Toolbar
-            stageRef={stageRef}
-            exportRef={exportRef}
-            onOpenSettings={() => setSettingsOpen(true)}
-            onOpenExport={() => setExportOpen(true)}
-            onOpenHelp={() => setHelpOpen(true)}
-          />
-          <ComparisonView
-            img1={images.left}
-            img2={images.right}
-            stageRef={stageRef}
-            exportRef={exportRef}
-            settingsOpen={settingsOpen}
-            onCloseSettings={() => setSettingsOpen(false)}
-          />
-        </div>
+      </div>
+
+      {openingPair && (
+        <div className="pair-loading" role="status">正在载入这一对图片…</div>
       )}
 
       <footer className="app-footer">

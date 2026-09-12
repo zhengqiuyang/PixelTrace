@@ -1930,10 +1930,659 @@ body::before {
 }
 
 /* ═══════════════════════════════════
-   RESPONSIVE
+   模式切换（单对 / 文件夹批量）
    ═══════════════════════════════════ */
 
-/* 工具栏提示按「先砍最不常用的」逐级下线 —— nth-child 的顺序即优先级，
+/* 两块面板常驻，靠这里切可见性。
+   用双类名提高优先级，压过 .batch-root / .result-section 上的 display ——
+   [hidden] 那条 UA 规则优先级低于作者样式，靠它会失效。 */
+.mode-panes {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mode-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mode-pane.mode-pane--hidden { display: none; }
+
+.mode-switch {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.mode-btn {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.mode-btn:hover { color: var(--text); }
+
+.mode-btn.active {
+  background: var(--accent-glow);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 136, 0.3);
+}
+
+/* 上传页上的次要入口 —— 与 .upload-tip 同一行，故不换行、不继承 letter-spacing */
+.upload-tip-link {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-left: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.upload-tip-link:hover { color: #33ffaa; }
+
+/* 从批量结果载入一对图时的遮罩 —— 解码大图有可感知的延迟，
+   没有反馈的话用户会以为点击没生效而重复点 */
+.pair-loading {
+  position: fixed;
+  left: 50%;
+  bottom: 48px;
+  transform: translateX(-50%);
+  z-index: 60;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 10px 20px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--accent);
+  box-shadow: var(--glow-green), var(--glass-shadow);
+}
+
+/* ═══════════════════════════════════
+   BATCH —— 文件夹批量对比
+   ═══════════════════════════════════ */
+
+/* 状态色统一在这里定义：报告里的徽章与这里同源，
+   两边各写一套色值迟早会对不上 */
+.batch-root {
+  --b-ok: #00ff88;
+  --b-warn: #ffb020;
+  --b-err: #ff3366;
+  --b-info: #6ac8ff;
+  --b-dim: #6a6a7a;
+
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 0 0;
+  min-width: 0;
+}
+
+/* ─── 工具条 ─── */
+.batch-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.batch-title {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+
+.batch-toolbar-spacer { flex: 1; }
+
+/* ─── 两个文件夹选择器 ─── */
+.batch-pickers {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.batch-pickers-arrow {
+  align-self: center;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: var(--accent);
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+  letter-spacing: 1px;
+}
+
+.batch-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 148px;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  transition: all var(--transition-normal);
+  /* 里面的 file input 用 position:absolute 藏起来，父级必须建立包含块，
+     否则它会相对更上层的定位祖先飘出去 */
+  position: relative;
+}
+
+.batch-picker.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  box-shadow: var(--glow-green);
+}
+
+.batch-picker.has-files {
+  border-style: solid;
+  border-color: rgba(0, 255, 136, 0.35);
+}
+
+.batch-picker-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-picker-label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.batch-picker-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+  background: var(--accent-glow);
+  border: 1px solid rgba(0, 255, 136, 0.25);
+  border-radius: 3px;
+  padding: 1px 7px;
+}
+
+.batch-picker-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.batch-picker-folder {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* 目录名可能很长，省略号比换行更能保住卡片高度一致 */
+  direction: rtl;
+  text-align: center;
+}
+
+.batch-picker-hint {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.batch-picker-reset { padding: 6px 14px; font-size: 11px; }
+
+.batch-picker-error {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--b-err);
+  text-align: center;
+}
+
+/* webkitdirectory 的 input 只作触发器，本体必须留在 DOM 里（display:none 的
+   input 仍可 .click()），但不能占位 */
+.batch-picker-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ─── 配对摘要 + 运行控制 ─── */
+.batch-pairing {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+}
+
+.batch-pairing-line {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+.batch-pairing-line b {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.batch-warn {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--b-warn);
+  background: rgba(255, 176, 32, 0.08);
+  border: 1px solid rgba(255, 176, 32, 0.25);
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.batch-run-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ─── 进度 ─── */
+.batch-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.batch-progress-bar {
+  height: 6px;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.batch-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.4);
+  transition: width var(--transition-smooth);
+}
+
+.batch-progress-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.batch-progress-file {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  direction: rtl;
+  text-align: left;
+}
+
+.batch-note {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+.batch-error {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--b-err);
+  background: var(--danger-glow);
+  border: 1px solid rgba(255, 51, 102, 0.3);
+  border-radius: 4px;
+  padding: 10px 14px;
+}
+
+/* ─── 汇总卡片 ─── */
+.batch-results {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.batch-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 10px;
+}
+
+.batch-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.batch-card b {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.batch-card span {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.batch-card.ok b { color: var(--b-ok); }
+.batch-card.warn b { color: var(--b-warn); }
+.batch-card.err b { color: var(--b-err); }
+.batch-card.info b { color: var(--b-info); font-size: 16px; }
+.batch-card.dim b { color: var(--b-dim); }
+
+/* ─── 筛选 / 排序 / 导出条 ─── */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.batch-filters {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.batch-filter {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.batch-filter:hover { color: var(--text); border-color: var(--accent-dim); }
+
+.batch-filter.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.batch-filter i {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.75;
+  margin-left: 2px;
+}
+
+.batch-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.batch-select {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg-main);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.batch-select:focus { outline: none; border-color: var(--accent); }
+
+/* ─── 结果表 ─── */
+.batch-table-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: auto;
+  /* 表头吸顶需要滚动容器，表体限高避免几十行把整页拉得极长 */
+  max-height: 62vh;
+}
+
+.batch-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+
+.batch-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: var(--bg-main);
+  border-bottom: 1px solid var(--border);
+  padding: 9px 10px;
+  white-space: nowrap;
+}
+
+.batch-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: middle;
+  color: var(--text);
+}
+
+.batch-table tbody tr:last-child td { border-bottom: none; }
+
+.batch-row.clickable { cursor: pointer; }
+
+.batch-row.clickable:hover { background: var(--bg-hover); }
+
+.batch-row.clickable:hover .batch-open { opacity: 1; }
+
+.batch-num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.batch-cell-file { min-width: 160px; max-width: 300px; }
+
+.batch-cell-action { width: 1%; white-space: nowrap; }
+
+.batch-open {
+  font-size: 11px;
+  color: var(--accent);
+  opacity: 0.35;
+  transition: opacity var(--transition-fast);
+}
+
+.batch-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.batch-path--sub { color: var(--text-dim); }
+
+.batch-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.batch-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  background: var(--bg-main);
+  white-space: nowrap;
+}
+
+.batch-tag--loose { color: var(--b-info); border-color: rgba(106, 200, 255, 0.3); }
+.batch-tag--warn { color: var(--b-warn); border-color: rgba(255, 176, 32, 0.3); }
+
+/* ─── 状态徽章 ─── */
+.batch-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.batch-badge.b--identical {
+  color: var(--b-ok);
+  border-color: rgba(0, 255, 136, 0.35);
+  background: rgba(0, 255, 136, 0.08);
+}
+
+.batch-badge.b--noise {
+  color: var(--b-dim);
+  border-color: var(--border);
+  background: var(--bg-main);
+}
+
+.batch-badge.b--changed {
+  color: var(--b-warn);
+  border-color: rgba(255, 176, 32, 0.4);
+  background: rgba(255, 176, 32, 0.1);
+}
+
+.batch-badge.b--only-a,
+.batch-badge.b--only-b {
+  color: var(--b-info);
+  border-color: rgba(106, 200, 255, 0.35);
+  background: rgba(106, 200, 255, 0.08);
+}
+
+.batch-badge.b--error {
+  color: var(--b-err);
+  border-color: rgba(255, 51, 102, 0.4);
+  background: var(--danger-glow);
+}
+
+.batch-badge.b--pending {
+  color: var(--text-dim);
+  border-color: var(--border);
+  background: transparent;
+}
+
+/* ─── 缩略图 ─── */
+.batch-thumbs {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.batch-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin: 0;
+}
+
+.batch-thumb img {
+  width: 52px;
+  height: 40px;
+  object-fit: contain;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  /* 棋盘格底：透明 PNG 的差异在图上看不出来，垫底才能看见 */
+  background-image:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.04) 75%),
+    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 4px 4px;
+}
+
+.batch-thumb figcaption {
+  font-size: 9px;
+  color: var(--text-dim);
+}
+
+.batch-dim { color: var(--text-dim); }
+
+.batch-empty {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 28px 0;
+}
+
+/* ═══════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════
+
+   工具栏提示按「先砍最不常用的」逐级下线 —— nth-child 的顺序即优先级，
    与 Toolbar.jsx 里提示的书写顺序一一对应，改动其一必须同步改另一个。
    阈值来自实测：工具栏内容宽 = 视口 − 2×144（页面留白）− 32（内边距），
    5 条提示约需 1073px、4 条约 1002px、2 条约 858px，据此反推。 */
@@ -1949,6 +2598,16 @@ body::before {
 
 @media (max-width: 1178px) {
   .toolbar-shortcuts { display: none; }
+}
+
+@media (max-width: 900px) {
+  /* 两个选择器并排会把每个压到 ~300px，目录名几乎全被省略号吃掉，
+     不如竖排 */
+  .batch-pickers { grid-template-columns: 1fr; }
+  .batch-pickers-arrow { justify-self: center; }
+  .batch-picker { min-height: 120px; }
+  .batch-bar-right { margin-left: 0; width: 100%; }
+  .batch-select { flex: 1; }
 }
 
 @media (max-width: 768px) {
@@ -1977,4 +2636,16 @@ body::before {
   .result-toolbar { gap: 8px; padding: 8px 10px; }
 
   .settings-slider input[type='range'] { width: 110px; }
+
+  /* 批量：窄屏下缩略图与「查看」列先让位，路径与状态才是要看的 */
+  .batch-cards { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
+  .batch-card b { font-size: 16px; }
+  .batch-thumbs { display: none; }
+  .batch-cell-action { display: none; }
+  .batch-table-wrap { max-height: none; }
+  .batch-table { font-size: 11px; }
+  .batch-table thead th:nth-child(5),
+  .batch-table td:nth-child(5),
+  .batch-table thead th:nth-child(8),
+  .batch-table td:nth-child(8) { display: none; }
 }

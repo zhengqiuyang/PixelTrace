@@ -95,6 +95,44 @@ PixelTrace 把整套差异计算放在本地 Canvas + Web Worker 里跑，不依
 > CSV 带 UTF-8 BOM 与 CRLF 换行，Excel 直接打开中文表头不乱码；
 > 报告 JSON 记录了两个原图文件名与当时的检测参数快照，便于归档追溯。
 
+### 文件夹批量对比
+
+顶栏切到「文件夹批量」，选两个文件夹即可一次比对整批截图，用于回归验证：
+改了一版 UI，想知道**哪几张图真的变了**。
+
+两个文件夹按三轮规则配对，越靠后越宽松：
+
+| 轮次 | 规则 | 场景 |
+|------|------|------|
+| 1 | 相对路径完全相同 | 目录结构没动 |
+| 2 | 仅文件名相同 | 目录层级变了 |
+| 3 | 去扩展名后相同 | `a.png` ↔ `a.jpg` |
+
+配对**不猜**：同一侧出现多个同名候选时，整组标为「配对歧义」并计入单边独有，
+而不是随便挑一个——挑错会让报告出现「这张图变了」的假结论，比不配更糟。
+
+结果分三档而不是简单的「有差 / 无差」，用的还是你已经调好的阈值与最小区域：
+
+| 状态 | 判定 | 含义 |
+|------|------|------|
+| **一致** | 差异像素 = 0 | 完全没变 |
+| **微差** | 有差异像素，但没构成区域 | 压缩噪声 / 亚像素抖动 |
+| **有差异** | 构成了达标区域 | 真差异，需要看 |
+
+分「微差」这一档是关键：否则一张 2000×2000 的截图里一个像素的抗锯齿差异
+就会让报告显示「有差异」，几十张下来全是噪声，报告就没法看了。
+
+- **进度可中断** —— 逐张串行计算（并行会因同时持有多个 ImageData 而打爆内存），显示「第 n / N 张」，可随时取消，已完成的部分照常出结果
+- **单张失败不中断整批** —— 损坏图记为「计算失败」继续跑下一张
+- **点行进单对视图** —— 批量只回答「哪几张变了」，具体变在哪点一下回到单对视图深看，切回批量时结果还在
+- **导出** —— 自包含 HTML 报告（内联全部缩略图、无外部依赖、可离线打开与打印）或汇总 CSV
+
+> 报告内嵌了当时的检测参数快照（阈值 / 最小区域 / 合并距离 / 比较口径），
+> 换台机器复现时不会出现「同样的图结果对不上」。
+>
+> 换文件夹会清空上一轮结果——结果的键是 `相对路径A||相对路径B`，
+> 不清的话新旧文件夹里同名的那几张会撞上同一个键，表格里显示的就是上一次的数字。
+
 ### 其他
 
 - 支持 JPG / PNG / WebP / GIF（取首帧）/ BMP
@@ -141,10 +179,11 @@ npm run dev
 | `npm run build` | 构建生产版本到 `dist/` |
 | `npm run preview` | 本地预览构建产物 |
 | `npm run lint` | 静态检查（oxlint） |
-| `npm test` | 跑全部单元测试（差异算法 + 质量指标 + 导出） |
+| `npm test` | 跑全部单元测试（差异算法 + 质量指标 + 导出 + 文件夹配对） |
 | `npm run test-diff` | 差异算法的已知答案测试（纯函数，不需要浏览器） |
 | `npm run test-metrics` | 质量指标的已知答案测试（对照公开参考值） |
 | `npm run test-exporters` | 导出产物的结构测试（文件名 / CSV / 报告 JSON） |
+| `npm run test-batch` | 文件夹配对的三轮规则、歧义与非图片排除测试 |
 | `npm run verify-dpr` | 打开渲染自检页，验证高分辨率渲染未退化 |
 | `npm run verify-export` | 打开导出合成自检页，验证多画布裁剪还原 |
 
@@ -161,11 +200,14 @@ npm run dev
 
 ```
 src/
-├── components/   # 视图与 UI 组件（六种视图、变更列表、工具栏、放大镜、导出面板等）
-├── hooks/        # useZoomPan / useImageDiff / useToast
+├── components/   # 视图与 UI 组件（六种视图、变更列表、工具栏、放大镜、导出面板、
+│                 #   批量对比的 BatchView / BatchUploader / BatchResults 等）
+├── hooks/        # useZoomPan / useImageDiff / useBatchDiff / useToast
 ├── store/        # AppContext（useReducer 集中状态）
-├── utils/        # imageDiff 核心算法、imageMetrics 质量指标、exporters 导出、constants、canvasDPR
-└── workers/      # diffWorker 差异计算
+├── utils/        # imageDiff 核心算法、imageMetrics 质量指标、diffPipeline 计算序列、
+│                 #   batchPairing 配对、batchResults 归类、batchReport 报告、
+│                 #   exporters 导出、imageLoader、constants、canvasDPR
+└── workers/      # diffWorker 单对差异计算、batchWorker 批量差异计算
 ```
 
 ## 文档
@@ -189,7 +231,8 @@ src/
 - [x] 复制当前视图到剪贴板
 - [x] 质量指标（PSNR / SSIM / MSE / 逐区域 ΔE76）与 RGB 直方图
 - [x] 多格式导出（PNG / JPEG / WebP）与差异报告、变更列表 CSV、水印、区域标记
-- [ ] 批量与回归对比（版本序列，一次比对多张截图）
+- [x] 文件夹批量对比（三轮配对 + 三档状态 + 自包含 HTML 报告 / CSV）
+- [ ] 版本序列对比（同一张图跨多个版本的时间线）
 - [ ] 渲染精度档位（1x / 0.5 / 0.25）
 
 ## 浏览器支持

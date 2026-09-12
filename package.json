@@ -7,10 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "test": "node scripts/test-diff.mjs && node scripts/test-metrics.mjs && node scripts/test-exporters.mjs",
+    "test": "node scripts/test-diff.mjs && node scripts/test-metrics.mjs && node scripts/test-exporters.mjs && node scripts/test-batch.mjs",
     "test-diff": "node scripts/test-diff.mjs",
     "test-metrics": "node scripts/test-metrics.mjs",
     "test-exporters": "node scripts/test-exporters.mjs",
+    "test-batch": "node scripts/test-batch.mjs",
     "preview": "vite preview",
     "verify-dpr": "open scripts/verify-dpr.html",
     "verify-export": "vite --open /scripts/verify-export.html"
