@@ -14,43 +14,11 @@ function extractImageData(img, w, h) {
 }
 
 async function computeOnMain(dataA, dataB, settings, currentId, computeIdRef, cacheRef, setters) {
-  const { computeDiff, findDiffRegions } = await import('../utils/imageDiff.js');
-  const { computeImageMetrics, computeRegionMetrics } = await import('../utils/imageMetrics.js');
+  const { computePairResult } = await import('../utils/diffPipeline.js');
 
   if (currentId !== computeIdRef.current) return;
 
-  const { diffImageData: diffImg, diffCount, mask, filtered } = computeDiff(dataA, dataB, {
-    threshold: settings.threshold,
-    mode: settings.diffMode,
-    antiAlias: settings.antiAlias,
-    ignoreShift: settings.ignoreShift,
-  });
-
-  const foundRegions = findDiffRegions(mask, diffImg.width, diffImg.height, {
-    minArea: settings.minArea,
-    mergeDistance: settings.mergeDistance,
-    maxRegions: settings.maxRegions ?? 500,
-  });
-
-  // 与 worker 路径保持一致：质量指标 + 逐区域色差
-  const metrics = computeImageMetrics(dataA, dataB);
-  const regions = computeRegionMetrics(dataA, dataB, mask, foundRegions);
-
-  const totalPixels = diffImg.width * diffImg.height;
-  const result = {
-    diffImageData: diffImg,
-    diffCount,
-    mask,
-    regions,
-    stats: {
-      totalPixels,
-      diffCount,
-      diffPercentage: totalPixels > 0 ? (diffCount / totalPixels) * 100 : 0,
-      regionCount: regions.length,
-      filtered,
-      metrics,
-    },
-  };
+  const result = computePairResult(dataA, dataB, settings);
 
   cacheRef.current = result;
   setters.setDiffImageData(result.diffImageData);

@@ -44,6 +44,21 @@ export function perceptualMagnitude(deltaSq) {
 }
 
 /**
+ * `#rrggbb` / `rrggbb` → [r, g, b]
+ *
+ * 放在这里是因为导出合成（exporters）与批量预览（batchWorker）都要用，
+ * 而 batchWorker 是 worker 上下文，不宜去 import 导出模块。
+ * 解析失败时回退到高亮默认色，而不是抛错 —— 高亮色来自用户设置，
+ * 不该让一个非法色值把整次导出/批量计算打断。
+ */
+export function hexToRgb(hex, fallback = [255, 51, 102]) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return fallback;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/**
  * 感知口径的判据常量：把「等效亮度差阈值」换算到平方域。
  *
  * 换算关系是 maxScore = 0.5053 × threshold²，因为 YIQ 色差平方在

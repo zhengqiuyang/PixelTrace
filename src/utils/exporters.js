@@ -14,6 +14,7 @@
  */
 
 import { composeCurrentView } from './exportView.js';
+import { hexToRgb } from './imageDiff.js';
 
 // ─── 导出内容 (§10.1) ───────────────────────────────────
 
@@ -37,13 +38,6 @@ export function getFormat(key) {
 }
 
 // ─── 工具 ──────────────────────────────────────────────
-
-function hexToRgb(hex) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
-  if (!m) return [255, 51, 102];
-  const n = parseInt(m[1], 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
 
 function localStamp() {
   const d = new Date();

@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback } from 'react';
 import { useToast } from '../hooks/useToast.js';
+import { loadImageFromFile, imageFromDataUrl } from '../utils/imageLoader.js';
 import Dialog from './Dialog';
 import {
   SUPPORTED_FORMATS,
@@ -30,36 +31,6 @@ function validateFile(file) {
   }
 
   return { ok: true };
-}
-
-function loadImage(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        if (img.naturalWidth === 0 || img.naturalHeight === 0) {
-          reject(new Error('corrupted'));
-          return;
-        }
-        // GIF 取第一帧（已经是第一帧了）
-        resolve({ img, dataUrl: e.target.result });
-      };
-      img.onerror = () => reject(new Error('corrupted'));
-      img.src = e.target.result;
-    };
-    reader.onerror = () => reject(new Error('corrupted'));
-    reader.readAsDataURL(file);
-  });
-}
-
-function imageFromDataUrl(dataUrl) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('corrupted'));
-    img.src = dataUrl;
-  });
 }
 
 /** 等比缩到 SCALE_TARGET 以内（仅用于内存不足时的降级，不再作为上传闸门） */
@@ -113,15 +84,8 @@ export default function ImageUploader({ label, onImageLoad, side: _side }) {
   const loadFile = useCallback(async (file) => {
     setState(UPLOAD_STATES.LOADING);
     try {
-      const { img, dataUrl } = await loadImage(file);
-
-      commit(img, dataUrl, {
-        fileName: file.name,
-        width: img.naturalWidth,
-        height: img.naturalHeight,
-        fileSize: file.size,
-        format: file.name.split('.').pop().toUpperCase(),
-      });
+      const { img, dataUrl, meta } = await loadImageFromFile(file);
+      commit(img, dataUrl, meta);
     } catch {
       setState(UPLOAD_STATES.ERROR);
       setErrorMsg(ERROR_MESSAGES.CORRUPTED.message);
@@ -194,7 +158,7 @@ export default function ImageUploader({ label, onImageLoad, side: _side }) {
     setPending(null);
     setState(UPLOAD_STATES.LOADING);
     try {
-      const { img: source } = await loadImage(p.file);
+      const { img: source } = await loadImageFromFile(p.file);
       const scaled = downscaleToLimit(source);
       const img = await imageFromDataUrl(scaled.dataUrl);
 
