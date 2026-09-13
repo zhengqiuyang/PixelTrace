@@ -2014,9 +2014,19 @@ body::before {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* 面板常驻挂载、只切 display，所以靠这条拿到切换时的 fade-up。
+     display:none 会把元素移出渲染，切回可见时动画自动重播 ——
+     既保住了 BatchView / ComparisonView 里的状态，又不用卸载节点。
+     面板里的内容较多，加一层 will-change 提示，避免动画期间布局抖动。 */
+  animation: pane-fade-up 220ms ease-out both;
 }
 
 .mode-pane.mode-pane--hidden { display: none; }
+
+@keyframes pane-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 .mode-switch {
   display: flex;
@@ -2762,7 +2772,7 @@ body::before {
 
 /* ─── Sonner Toaster ─── */
 /* 像素风格的通知：硬边框、无圆角 */
-[data-sonner-toaster] [data-toast] {
+[data-sonner-toaster] [data-sonner-toast] {
   border-radius: 0 !important;
   font-family: var(--font-ui);
   border-width: 1px !important;
@@ -2773,16 +2783,16 @@ body::before {
   padding: 10px 14px !important;
   font-size: 13px !important;
 }
-[data-sonner-toaster] [data-toast][data-type="success"] {
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] {
   border-color: var(--accent) !important;
 }
-[data-sonner-toaster] [data-toast][data-type="error"] {
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] {
   border-color: var(--danger) !important;
 }
-[data-sonner-toaster] [data-toast][data-type="warning"] {
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"] {
   border-color: var(--warn) !important;
 }
-[data-sonner-toaster] [data-toast][data-type="info"] {
+[data-sonner-toaster] [data-sonner-toast][data-type="info"] {
   border-color: var(--info) !important;
 }
 [data-sonner-toaster] [data-icon] {

@@ -239,21 +239,20 @@ export default function ImageUploader({ label, onImageLoad, side: _side }) {
       </div>
     );
   } else {
+    // 拖拽区本身用普通 div，不用 motion.div：
+    //   · framer-motion 插值不了 CSS 变量（'var(--accent)' 不是可解析颜色），
+    //     边框色交给 .uploader-zone.drag-over + `transition: all .25s` 处理更靠谱；
+    //   · framer 的 transform 会覆盖 .drag-over 里的 translateY(-2px)，两者打架。
+    // 图标从 [+] 变成 UploadCloud 的那次切换才用 AnimatePresence，
+    // 那里动的是 opacity/scale，是可插值的属性。
     content = (
-      <motion.div
+      <div
         className={`uploader-zone ${state === UPLOAD_STATES.DRAG_OVER ? 'drag-over' : ''}`}
         onDrop={handleDrop}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onClick={() => inputRef.current?.click()}
-        animate={
-          state === UPLOAD_STATES.DRAG_OVER
-            ? { scale: 1.02, borderColor: 'var(--accent)' }
-            : { scale: 1, borderColor: 'var(--border)' }
-        }
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        whileHover={{ scale: 1.01 }}
       >
         <input
           ref={inputRef}
@@ -296,7 +295,7 @@ export default function ImageUploader({ label, onImageLoad, side: _side }) {
           {state === UPLOAD_STATES.DRAG_OVER ? '释放以上传' : '拖放图片或点击选择'}
         </p>
         <p className="uploader-formats">JPG / PNG / WebP / GIF</p>
-      </motion.div>
+      </div>
     );
   }
 

@@ -12,7 +12,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 
 /**
  * 设置面板 (PRODUCT.md §9.3)
@@ -21,8 +20,9 @@ import { Label } from '@/components/ui/label';
  * 所有改动即时生效（updateSettings → 触发 useImageDiff 重算 / 画布重绘），
  * 因此不需要「确定」按钮，底部只留「恢复默认」与「完成」。
  *
- * 控件使用 shadcn/ui 的 Slider / Switch / Label，
- * 但保留像素风格的视觉设计（无圆角、硬边框、荧光绿）。
+ * 控件使用 shadcn/ui 的 Slider / Switch，标签走原生 label + aria-label
+ * （shadcn 的 Label 没用到，不引入只为一个文本节点不值得），
+ * 同时保留像素风格的视觉设计（无圆角、硬边框、荧光绿）。
  *
  * 注意：§9.3 里的「渲染精度 (1x/0.5/0.25)」没有做进来 —— 它需要六个视图
  * 连同差异计算一起改成可变分辨率渲染，属于独立的一块工作，先不放假控件。

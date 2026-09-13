@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { AppProvider } from './store/AppContext.jsx';
 import { useAppContext } from './hooks/useAppContext.js';
 import { useToast } from './hooks/useToast.js';
-import { ToastProvider } from './components/Toast.jsx';
 import { Toaster } from './components/ui/sonner';
 import { TooltipProvider } from './components/ui/tooltip';
 import { loadImageFromFile } from './utils/imageLoader.js';
@@ -172,98 +170,63 @@ function AppContent() {
           用户得重新选一遍文件夹再跑一遍 —— 这个代价远大于多留一棵 DOM。
           ComparisonView 同理：切走再切回不会重算差异。
 
-          Framer Motion 让切换时的过渡更顺滑：
-          旧面板 fade-out + 位移，新面板 fade-in + 位移，200ms 内完成。 */}
+          切换过渡交给 CSS：display:none → display:flex 会让动画重新播放，
+          所以状态保得住，fade-up 的效果也还在，不需要卸载/重建节点。 */}
       <div className="mode-panes">
-        <AnimatePresence mode="wait" initial={false}>
-          {mode === 'batch' ? (
-            <motion.div
-              key="batch"
-              className="mode-pane"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-            >
-              <BatchView onExit={() => setMode('single')} onOpenPair={handleOpenPair} />
-            </motion.div>
+        <div className={`mode-pane ${mode === 'batch' ? '' : 'mode-pane--hidden'}`}>
+          <BatchView onExit={() => setMode('single')} onOpenPair={handleOpenPair} />
+        </div>
+        <div className={`mode-pane ${mode === 'single' ? '' : 'mode-pane--hidden'}`}>
+          {!hasBoth ? (
+            <div className="upload-section">
+              <div className="upload-grid">
+                <ImageUploader
+                  label="原始图片"
+                  side="left"
+                  onImageLoad={(img, meta) => setImage('left', img, meta)}
+                />
+                <div className="upload-divider">
+                  <div className="divider-line" />
+                  <span className="divider-icon">VS</span>
+                  <div className="divider-line" />
+                </div>
+                <ImageUploader
+                  label="修改后图片"
+                  side="right"
+                  onImageLoad={(img, meta) => setImage('right', img, meta)}
+                />
+              </div>
+              <p className="upload-tip">
+                上传两张图片以开始比较差异，或
+                <button
+                  type="button"
+                  className="upload-tip-link"
+                  onClick={() => setMode('batch')}
+                >
+                  对比两个文件夹
+                </button>
+              </p>
+            </div>
           ) : (
-            <motion.div
-              key="single"
-              className="mode-pane"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-            >
-              <AnimatePresence mode="wait" initial={false}>
-                {!hasBoth ? (
-                  <motion.div
-                    key="upload"
-                    className="upload-section"
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 1.02 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                  >
-                    <div className="upload-grid">
-                      <ImageUploader
-                        label="原始图片"
-                        side="left"
-                        onImageLoad={(img, meta) => setImage('left', img, meta)}
-                      />
-                      <div className="upload-divider">
-                        <div className="divider-line" />
-                        <span className="divider-icon">VS</span>
-                        <div className="divider-line" />
-                      </div>
-                      <ImageUploader
-                        label="修改后图片"
-                        side="right"
-                        onImageLoad={(img, meta) => setImage('right', img, meta)}
-                      />
-                    </div>
-                    <p className="upload-tip">
-                      上传两张图片以开始比较差异，或
-                      <button
-                        type="button"
-                        className="upload-tip-link"
-                        onClick={() => setMode('batch')}
-                      >
-                        对比两个文件夹
-                      </button>
-                    </p>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="result"
-                    className="result-section"
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 1.02 }}
-                    transition={{ duration: 0.25, ease: 'easeOut' }}
-                  >
-                    <Toolbar
-                      stageRef={stageRef}
-                      exportRef={exportRef}
-                      onOpenSettings={() => setSettingsOpen(true)}
-                      onOpenExport={() => setExportOpen(true)}
-                      onOpenHelp={() => setHelpOpen(true)}
-                    />
-                    <ComparisonView
-                      img1={images.left}
-                      img2={images.right}
-                      stageRef={stageRef}
-                      exportRef={exportRef}
-                      settingsOpen={settingsOpen}
-                      onCloseSettings={() => setSettingsOpen(false)}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
+            <div className="result-section">
+              <Toolbar
+                stageRef={stageRef}
+                exportRef={exportRef}
+                onOpenSettings={() => setSettingsOpen(true)}
+                onOpenExport={() => setExportOpen(true)}
+                onOpenHelp={() => setHelpOpen(true)}
+              />
+              <ComparisonView
+                img1={images.left}
+                img2={images.right}
+                stageRef={stageRef}
+                exportRef={exportRef}
+                settingsOpen={settingsOpen}
+                onCloseSettings={() => setSettingsOpen(false)}
+              />
+            </div>
           )}
-        </AnimatePresence>
+        </div>
       </div>
 
       {openingPair && (
@@ -287,14 +250,14 @@ function AppContent() {
 }
 
 function App() {
+  // 没有 ToastProvider：sonner 的 toast() 是模块级 API，
+  // 只要在 <Toaster /> 挂载的地方之外调用就能弹出来（见 utils/toast.js）。
   return (
     <AppProvider>
-      <ToastProvider>
-        <TooltipProvider delayDuration={200}>
-          <AppContent />
-          <Toaster />
-        </TooltipProvider>
-      </ToastProvider>
+      <TooltipProvider delayDuration={200}>
+        <AppContent />
+        <Toaster />
+      </TooltipProvider>
     </AppProvider>
   );
 }

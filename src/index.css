@@ -38,6 +38,10 @@
   --color-border: var(--border);
   --color-border-light: var(--border-light);
 
+  /* DialogOverlay 用的 bg-scrim。之前漏了这个 token，
+     Tailwind 不会为不存在的 token 生成 utility，遮罩层就变成全透明。 */
+  --color-scrim: var(--scrim);
+
   --color-b-ok: var(--b-ok);
   --color-b-warn: var(--b-warn);
   --color-b-err: var(--b-err);
