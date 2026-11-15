@@ -1,18 +1,37 @@
+<div align="center">
+
 # PixelTrace
 
-> 逐像素图像差异追踪器 —— 纯前端、浏览器端运行的图像对比工具
+**逐像素图像差异追踪器 — 纯前端、浏览器内完成，图片不离开你的机器。**
 
-**[在线体验 Demo](https://zhengqiuyang.github.io/PixelTrace/)**
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
+[![Demo](https://img.shields.io/badge/demo-online-4f6bf0?style=flat-square)](https://zhengqiuyang.github.io/PixelTrace/)
+[![Stars](https://img.shields.io/github/stars/zhengqiuyang/PixelTrace?style=flat-square&color=0969da)](https://github.com/zhengqiuyang/PixelTrace/stargazers)
+[![Last commit](https://img.shields.io/github/last-commit/zhengqiuyang/PixelTrace?style=flat-square&label=updated)](https://github.com/zhengqiuyang/PixelTrace/commits)
+
+**[▶ 在线体验 Demo](https://zhengqiuyang.github.io/PixelTrace/)** — 不用安装，打开就能比
+
+```bash
+npm install && npm run dev
+```
+
+[为什么做这个](#why) · [功能](#features) · [快捷键](#keys) · [快速开始](#quickstart) · [技术栈](#stack) · [浏览器支持](#browsers)
+
+</div>
+
+---
 
 上传两张图片，以像素级精度找出它们之间的所有差异。所有计算都在浏览器内完成，**图片不会上传到任何服务器**。
 
----
+<a id="why"></a>
 
 ## 为什么做这个
 
 现有的在线对比工具，大多要先把图片传到服务器。但对设计师和前端来说，设计稿、未发布的产品截图、客户素材往往并不适合外传。
 
 PixelTrace 把整套差异计算放在本地 Canvas + Web Worker 里跑，不依赖任何后端。
+
+<a id="features"></a>
 
 ## 功能
 
@@ -179,6 +198,8 @@ HTML 报告的第一屏就是结论（`一致` / `微差` / `有差异`），再
 - 差异计算在 Web Worker 中执行，大图不阻塞界面，并显示计算进度
 - 感知 Retina 屏幕（devicePixelRatio），100% 缩放不发虚
 
+<a id="keys"></a>
+
 ## 快捷键
 
 按 `?` 可在应用内查看同一份列表。
@@ -200,6 +221,8 @@ HTML 报告的第一屏就是结论（`一致` / `微差` / `有差异`），再
 | `Space`（按住） | 临时平移模式 |
 | `?` | 快捷键帮助面板 |
 | `Esc` | 关闭弹窗 |
+
+<a id="quickstart"></a>
 
 ## 快速开始
 
@@ -227,7 +250,9 @@ npm run dev
 | `npm run verify-dpr` | 打开渲染自检页，验证高分辨率渲染未退化 |
 | `npm run verify-export` | 打开导出合成自检页，验证多画布裁剪还原 |
 
-## 技术栈
+"<a id="stack"></a>
+
+## 技术栈"
 
 - **React 19** + **Vite 8** + **Tailwind CSS v4**
 - 原生 **Canvas 2D** 负责像素计算与渲染，**Web Worker** 承载差异计算
@@ -293,6 +318,8 @@ src/
 - [x] 暗色 / 亮色主题切换（首帧不闪、比较区恒为暗底、配色按 WCAG AA 算过）
 - [ ] 版本序列对比（同一张图跨多个版本的时间线）
 - [ ] 渲染精度档位（1x / 0.5 / 0.25）
+
+<a id="browsers"></a>
 
 ## 浏览器支持
 
